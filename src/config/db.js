@@ -1,8 +1,6 @@
 require("dotenv").config({ path: "../.env" }); // Load .env from one level up
 const { Pool } = require("pg");
 
-console.log("PGUSER:", process.env.PGUSER);
-console.log("PGPASSWORD:", process.env.PGPASSWORD);
 
 const pool = new Pool({
     user: process.env.PGUSER,
