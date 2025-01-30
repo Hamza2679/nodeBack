@@ -1,19 +1,15 @@
-const pool = require("../config/db");
-const { hashPassword } = require("../utils/hashUtils");
+const pool = require('../config/db');
+const User = require('../models/User');
 
-const registerUser = async (name, email, password) => {
+exports.createUser = async (firstName, lastName, email, password) => {
+    const client = await pool.connect();
     try {
-        const hashedPassword = await hashPassword(password);
-        const query = `
-            INSERT INTO users (name, email, password)
-            VALUES ($1, $2, $3) RETURNING id, name, email;
-        `;
-        const values = [name, email, hashedPassword];
-        const { rows } = await pool.query(query, values);
-        return rows[0];
-    } catch (error) {
-        throw new Error(error.detail || "Signup failed");
+        const result = await client.query(
+            'INSERT INTO users (first_name, last_name, email, password) VALUES ($1, $2, $3, $4) RETURNING *',
+            [firstName, lastName, email, password]
+        );
+        return new User(result.rows[0].id, firstName, lastName, email);
+    } finally {
+        client.release();
     }
 };
-
-module.exports = { registerUser };
