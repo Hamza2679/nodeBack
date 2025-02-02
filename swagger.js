@@ -7,12 +7,12 @@ const options = {
         info: {
             title: "final project APIs",
             version: "1.0.0",
-            description: "API documentation for authentication routes",
+            description: "API documentation for final project",
         },
         servers: [
             {
                 url: "https://nodeback-final.onrender.com", // ✅ Change this to your Render domain
-                description: "Render Deployment",
+                description: "",
             }
         ],
     },

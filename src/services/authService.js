@@ -1,5 +1,8 @@
 const pool = require('../config/db');
 const User = require('../models/User');
+const jwt = require('jsonwebtoken');
+const { v4: uuidv4 } = require('uuid');
+const SECRET_KEY = "your_secret_key";
 
 exports.createUser = async (firstName, lastName, email, password) => {
     const client = await pool.connect();
@@ -14,25 +17,40 @@ exports.createUser = async (firstName, lastName, email, password) => {
     }
 };
 
-
 exports.loginUser = async (email, password) => {
+    const client = await pool.connect();
     try {
         const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
 
         if (result.rows.length === 0) {
-            throw new InvalidCredentialsError('Invalid email or password');
+            throw new Error('Invalid email or password');
         }
 
         const user = result.rows[0];
 
-        // Compare passwords directly (NOT SECURE if passwords are stored in plain text)
         if (password !== user.password) {
-            throw new InvalidCredentialsError('Invalid email or password');
+            throw new Error('Invalid email or password');
         }
 
+        const token = jwt.sign({ userId: user.id, email: user.email }, SECRET_KEY, { expiresIn: '1h' });
+        
+        await client.query(
+            `INSERT INTO user_token (user_id, acc_token, expire_at) VALUES ($1, $2, NOW() + INTERVAL '1 hour')`,
+            [user.id, token]
+        );
 
-        return { id: user.id, firstName: user.first_name, lastName: user.last_name, email: user.email };
+        return { 
+            id: user.id, 
+            firstName: user.first_name, 
+            lastName: user.last_name, 
+            email: user.email,
+            universityId: user.universityid,
+            profilePicture: user.profilepicture,
+            token
+        };
     } catch (error) {
         throw new Error(error.message);
+    } finally {
+        client.release();
     }
 };
