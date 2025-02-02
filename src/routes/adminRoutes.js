@@ -1,22 +1,16 @@
 const express = require("express");
-const authController = require("../controllers/authController");
+const adminAuthController = require("../controllers/adminauthController");
 
 const router = express.Router();
 
 /**
  * @swagger
- * tags:
- *   name: Authentication
- *   description: User authentication APIs
- */
-
-/**
- * @swagger
- * /api/auth/signup:
+ * /api/admin/signup:
  *   post:
- *     summary: Register a new user
- *     description: Creates a new user in the database.
- *     tags: [Authentication]
+ *     summary: Register an admin
+ *     description: Allows an admin to sign up with required details.
+ *     tags:
+ *       - Admin
  *     requestBody:
  *       required: true
  *       content:
@@ -28,6 +22,8 @@ const router = express.Router();
  *               - lastName
  *               - email
  *               - password
+ *               - universityId
+ *               - role
  *             properties:
  *               firstName:
  *                 type: string
@@ -37,20 +33,27 @@ const router = express.Router();
  *                 example: Doe
  *               email:
  *                 type: string
+ *                 format: email
  *                 example: john@example.com
  *               password:
  *                 type: string
  *                 format: password
  *                 example: securepassword
+ *               universityId:
+ *                 type: string
+ *                 example: UNI12345
+ *               role:
+ *                 type: string
+ *                 example: teacher
  *     responses:
  *       201:
- *         description: User registered successfully
+ *         description: Admin successfully registered
  *       400:
- *         description: Missing required fields
+ *         description: Bad request (missing fields or validation error)
  *       500:
- *         description: Internal server error
+ *         description: Server error
  */
-router.post("/signup", authController.signup);
+router.post("/signup", adminAuthController.signup);
 
 /**
  * @swagger

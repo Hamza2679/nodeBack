@@ -8,8 +8,8 @@ exports.createUser = async (firstName, lastName, email, password) => {
     const client = await pool.connect();
     try {
         const result = await client.query(
-            'INSERT INTO users (first_name, last_name, email, password) VALUES ($1, $2, $3, $4) RETURNING *',
-            [firstName, lastName, email, password]
+            'INSERT INTO users (first_name, last_name, email, password, role) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+            [firstName, lastName, email, password, 'student']
         );
         return new User(result.rows[0].id, firstName, lastName, email);
     } finally {
@@ -36,7 +36,7 @@ exports.loginUser = async (identifier, password) => {
         }
 
         // Generate JWT token
-        const token = jwt.sign({ userId: user.id, email: user.email }, SECRET_KEY, { expiresIn: '1h' });
+        const token = jwt.sign({ userId: user.id, email: user.email, role: user.role }, SECRET_KEY, { expiresIn: '1h' });
         
         // Store token in user_token table
         await client.query(
@@ -51,6 +51,7 @@ exports.loginUser = async (identifier, password) => {
             email: user.email,
             universityId: user.universityid,
             profilePicture: user.profilepicture,
+            role: user.role,
             token
         };
     } catch (error) {
