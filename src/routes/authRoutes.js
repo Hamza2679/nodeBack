@@ -16,7 +16,8 @@ const router = express.Router();
  *   post:
  *     summary: Register a new user
  *     description: Creates a new user in the database.
- *     tags: [Authentication]
+ *     tags:
+ *       - Authentication
  *     requestBody:
  *       required: true
  *       content:
@@ -37,6 +38,7 @@ const router = express.Router();
  *                 example: Doe
  *               email:
  *                 type: string
+ *                 format: email
  *                 example: john@example.com
  *               password:
  *                 type: string
@@ -58,7 +60,8 @@ router.post("/signup", authController.signup);
  *   post:
  *     summary: Authenticate user
  *     description: Logs in an existing user and returns user details.
- *     tags: [Authentication]
+ *     tags:
+ *       - Authentication
  *     requestBody:
  *       required: true
  *       content:
@@ -66,15 +69,16 @@ router.post("/signup", authController.signup);
  *           schema:
  *             type: object
  *             required:
- *                -universityId
+ *               - universityId
  *               - email
  *               - password
  *             properties:
- *              universityId:
- *                type: string
- *               example: UNI12345
+ *               universityId:
+ *                 type: string
+ *                 example: UNI12345
  *               email:
  *                 type: string
+ *                 format: email
  *                 example: john@example.com
  *               password:
  *                 type: string

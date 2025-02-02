@@ -5,6 +5,13 @@ const router = express.Router();
 
 /**
  * @swagger
+ * tags:
+ *   name: Admin
+ *   description: Admin authentication and management APIs
+ */
+
+/**
+ * @swagger
  * /api/admin/signup:
  *   post:
  *     summary: Register an admin
@@ -57,11 +64,12 @@ router.post("/signup", adminAuthController.signup);
 
 /**
  * @swagger
- * /api/auth/signin:
+ * /api/admin/signin:
  *   post:
- *     summary: Authenticate user
- *     description: Logs in an existing user and returns user details.
- *     tags: [Authentication]
+ *     summary: Authenticate an admin
+ *     description: Logs in an admin and returns admin details.
+ *     tags:
+ *       - Admin
  *     requestBody:
  *       required: true
  *       content:
@@ -69,23 +77,24 @@ router.post("/signup", adminAuthController.signup);
  *           schema:
  *             type: object
  *             required:
- *                -universityId
+ *               - universityId
  *               - email
  *               - password
  *             properties:
- *              universityId:
- *                type: string
- *               example: UNI12345
+ *               universityId:
+ *                 type: string
+ *                 example: UNI12345
  *               email:
  *                 type: string
- *                 example: john@example.com
+ *                 format: email
+ *                 example: admin@example.com
  *               password:
  *                 type: string
  *                 format: password
  *                 example: securepassword
  *     responses:
  *       200:
- *         description: Login successful
+ *         description: Admin login successful
  *       400:
  *         description: Email and password required
  *       401:
