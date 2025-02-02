@@ -17,19 +17,22 @@ exports.createUser = async (firstName, lastName, email, password) => {
     }
 };
 
-exports.loginUser = async (email, password) => {
+exports.loginUser = async (identifier, password) => {
     const client = await pool.connect();
     try {
-        const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+        const result = await pool.query(
+            'SELECT * FROM users WHERE email = $1 OR universityid = $1', 
+            [identifier]
+        );
 
         if (result.rows.length === 0) {
-            throw new Error('Invalid email or password');
+            throw new Error('Invalid credentials');
         }
 
         const user = result.rows[0];
 
         if (password !== user.password) {
-            throw new Error('Invalid email or password');
+            throw new Error('Invalid credentials');
         }
 
         const token = jwt.sign({ userId: user.id, email: user.email }, SECRET_KEY, { expiresIn: '1h' });
