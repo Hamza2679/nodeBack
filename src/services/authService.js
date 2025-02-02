@@ -35,8 +35,10 @@ exports.loginUser = async (identifier, password) => {
             throw new Error('Invalid credentials');
         }
 
+        // Generate JWT token
         const token = jwt.sign({ userId: user.id, email: user.email }, SECRET_KEY, { expiresIn: '1h' });
         
+        // Store token in user_token table
         await client.query(
             `INSERT INTO user_token (user_id, acc_token, expire_at) VALUES ($1, $2, NOW() + INTERVAL '1 hour')`,
             [user.id, token]
@@ -53,6 +55,18 @@ exports.loginUser = async (identifier, password) => {
         };
     } catch (error) {
         throw new Error(error.message);
+    } finally {
+        client.release();
+    }
+};
+
+exports.logoutUser = async (userId, token) => {
+    const client = await pool.connect();
+    try {
+        await client.query('DELETE FROM user_token WHERE user_id = $1 AND acc_token = $2', [userId, token]);
+        return { message: 'User logged out successfully' };
+    } catch (error) {
+        throw new Error('Logout failed');
     } finally {
         client.release();
     }
