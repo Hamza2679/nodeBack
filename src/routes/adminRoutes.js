@@ -91,6 +91,6 @@ router.post("/signup", adminAuthController.signup);
  *       401:
  *         description: Invalid credentials
  */
-router.post("/signin", authController.signin);
+router.post("/signin", adminAuthController.signin);
 
 module.exports = router;
