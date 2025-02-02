@@ -3,6 +3,7 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const SECRET_KEY = "your_secret_key";
+const emailService = require('./emailService'); // ✅ Import email service
 
 exports.createUser = async (firstName, lastName, email, password) => {
     const client = await pool.connect();
@@ -20,42 +21,24 @@ exports.createUser = async (firstName, lastName, email, password) => {
 exports.loginUser = async (identifier, password) => {
     const client = await pool.connect();
     try {
-        const result = await pool.query(
+        const result = await client.query(
             'SELECT * FROM users WHERE email = $1 OR universityid = $1', 
             [identifier]
         );
 
-        if (result.rows.length === 0) {
+        if (result.rows.length === 0 || password !== result.rows[0].password) {
             throw new Error('Invalid credentials');
         }
 
         const user = result.rows[0];
-
-        if (password !== user.password) {
-            throw new Error('Invalid credentials');
-        }
-
-        // Generate JWT token
         const token = jwt.sign({ userId: user.id, email: user.email, role: user.role }, SECRET_KEY, { expiresIn: '1h' });
-        
-        // Store token in user_token table
+
         await client.query(
             `INSERT INTO user_token (user_id, acc_token, expire_at) VALUES ($1, $2, NOW() + INTERVAL '1 hour')`,
             [user.id, token]
         );
 
-        return { 
-            id: user.id, 
-            firstName: user.first_name, 
-            lastName: user.last_name, 
-            email: user.email,
-            universityId: user.universityid,
-            profilePicture: user.profilepicture,
-            role: user.role,
-            token
-        };
-    } catch (error) {
-        throw new Error(error.message);
+        return { id: user.id, firstName: user.first_name, lastName: user.last_name, email: user.email, role: user.role, token };
     } finally {
         client.release();
     }
@@ -66,8 +49,83 @@ exports.logoutUser = async (userId, token) => {
     try {
         await client.query('DELETE FROM user_token WHERE user_id = $1 AND acc_token = $2', [userId, token]);
         return { message: 'User logged out successfully' };
+    } finally {
+        client.release();
+    }
+};
+
+
+
+exports.sendOTP = async (email) => {
+    const client = await pool.connect();
+    try {
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+
+        console.log("Generated OTP:", otp); // ✅ Debug Log
+
+        await client.query(
+            `INSERT INTO password_reset_otp (email, otp, expires_at) 
+            VALUES ($1, $2, $3) 
+            ON CONFLICT (email) 
+            DO UPDATE SET otp = EXCLUDED.otp, expires_at = EXCLUDED.expires_at`,
+            [email, otp, otpExpiry]
+        );
+
+        console.log("OTP stored in database:", otp); // ✅ Debug Log
+        
+        // ✅ Use emailService to send email
+        await emailService.sendEmail(email, otp);
+        console.log("OTP email sent successfully");
+
+        return { message: "OTP sent to your email" };
     } catch (error) {
-        throw new Error('Logout failed');
+        console.error("Error sending OTP:", error);
+        throw new Error("Failed to send OTP");
+    } finally {
+        client.release();
+    }
+};
+
+
+exports.verifyOTPAndResetPassword = async (email, otp, newPassword) => {
+    const client = await pool.connect();
+    try {
+        const otpResult = await client.query(
+            `SELECT otp, expires_at FROM password_reset_otp WHERE email = $1`,
+            [email]
+        );
+
+        if (otpResult.rows.length === 0) {
+            throw new Error("Invalid or expired OTP");
+        }
+
+        const storedOTP = otpResult.rows[0].otp;
+        const expiresAt = new Date(otpResult.rows[0].expires_at);
+        
+        if (storedOTP !== otp) {
+            throw new Error("Incorrect OTP");
+        }
+
+        if (expiresAt < new Date()) {
+            throw new Error("OTP has expired");
+        }
+
+        // Update the user's password
+        await client.query(
+            `UPDATE users SET password = $1 WHERE email = $2`,
+            [newPassword, email]
+        );
+
+        // Remove the used OTP
+        await client.query(
+            `DELETE FROM password_reset_otp WHERE email = $1`,
+            [email]
+        );
+
+        return { message: "Password has been reset successfully" };
+    } catch (error) {
+        throw new Error(error.message);
     } finally {
         client.release();
     }

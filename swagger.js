@@ -23,7 +23,7 @@ const swaggerSpec = swaggerJsdoc(options);
 
 const swaggerDocs = (app) => {
     app.use("/doc", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-    console.log("📄 Swagger Docs available at https://nodeback-final.onrender.com/doc");
+    console.log("📄 Swagger Docs available zat https://nodeback-final.onrender.com/doc");
 };
 
 module.exports = swaggerDocs;
