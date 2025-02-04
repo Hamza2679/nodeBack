@@ -2,8 +2,9 @@ const pool = require('../config/db');
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
-const SECRET_KEY = "your_secret_key";
-const emailService = require('./emailService'); // ✅ Import email service
+const dotenv = require("dotenv");
+const emailService = require('./emailService');
+
 
 exports.createUser = async (firstName, lastName, email, password) => {
     const client = await pool.connect();
@@ -19,6 +20,9 @@ exports.createUser = async (firstName, lastName, email, password) => {
 };
 
 exports.loginUser = async (identifier, password) => {
+    
+const SECRET_KEY = process.env.JWT_SECRET;
+console.log("SECRET_KEY:", SECRET_KEY);
     const client = await pool.connect();
     try {
         const result = await client.query(
@@ -31,7 +35,12 @@ exports.loginUser = async (identifier, password) => {
         }
 
         const user = result.rows[0];
-        const token = jwt.sign({ userId: user.id, email: user.email, role: user.role }, SECRET_KEY, { expiresIn: '1h' });
+        const token = jwt.sign(
+            { userId: user.id, email: user.email, role: user.role },
+            SECRET_KEY,
+            { expiresIn: '90d' }
+        );
+        
 
         await client.query(
             `INSERT INTO user_token (user_id, acc_token, expire_at) VALUES ($1, $2, NOW() + INTERVAL '1 hour')`,
