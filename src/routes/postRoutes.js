@@ -1,10 +1,9 @@
 const express = require("express");
 const multer = require("multer");
-const { createPost, getPosts, getPostById } = require("../controllers/postController");
 const { authenticateToken } = require("../middleware/authMiddleware");
-
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
+const { likePost, unlikePost, getLikesByPost, addComment, getCommentsByPost, createPost, getPosts, getPostById } = require("../controllers/postController");
 
 /**
  * @swagger
@@ -15,7 +14,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 /**
  * @swagger
- * /api/posts/create:
+ * /posts/create:
  *   post:
  *     summary: Create a new post
  *     description: Allows users to create a post with text and/or an image.
@@ -50,7 +49,7 @@ router.post("/create", authenticateToken, upload.single("image"), createPost);
 
 /**
  * @swagger
- * /api/posts:
+ * /posts:
  *   get:
  *     summary: Get all posts
  *     description: Retrieves all posts from the database.
@@ -59,34 +58,6 @@ router.post("/create", authenticateToken, upload.single("image"), createPost);
  *     responses:
  *       200:
  *         description: Successfully retrieved posts
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 posts:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       id:
- *                         type: integer
- *                         example: 1
- *                       userId:
- *                         type: integer
- *                         example: 123
- *                       text:
- *                         type: string
- *                         example: "Hello World!"
- *                       imageUrl:
- *                         type: string
- *                         example: "https://social-sync-for-final.s3.eu-north-1.amazonaws.com/my-image.jpg"
- *                       createdAt:
- *                         type: string
- *                         format: date-time
- *                       updatedAt:
- *                         type: string
- *                         format: date-time
  *       500:
  *         description: Server error
  */
@@ -94,7 +65,7 @@ router.get("/", getPosts);
 
 /**
  * @swagger
- * /api/posts/{id}:
+ * /posts/{id}:
  *   get:
  *     summary: Get a post by ID
  *     description: Retrieves a single post by its unique ID.
@@ -116,5 +87,109 @@ router.get("/", getPosts);
  *         description: Server error
  */
 router.get("/:id", getPostById);
+
+/**
+ * @swagger
+ * /posts/like:
+ *   post:
+ *     summary: Like a post
+ *     description: Allows an authenticated user to like a post.
+ *     tags:
+ *       - Posts
+ *     responses:
+ *       200:
+ *         description: Post liked successfully
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.post("/like", authenticateToken, likePost);
+
+/**
+ * @swagger
+ * /posts/unlike:
+ *   post:
+ *     summary: Unlike a post
+ *     description: Allows an authenticated user to unlike a post.
+ *     tags:
+ *       - Posts
+ *     responses:
+ *       200:
+ *         description: Post unliked successfully
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.post("/unlike", authenticateToken, unlikePost);
+
+/**
+ * @swagger
+ * /posts/{postId}/likes:
+ *   get:
+ *     summary: Get likes for a post
+ *     description: Retrieves all likes for a given post.
+ *     tags:
+ *       - Posts
+ *     parameters:
+ *       - in: path
+ *         name: postId
+ *         required: true
+ *         description: The ID of the post
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved likes
+ *       404:
+ *         description: Post not found
+ *       500:
+ *         description: Server error
+ */
+router.get("/:postId/likes", getLikesByPost);
+
+/**
+ * @swagger
+ * /posts/comment:
+ *   post:
+ *     summary: Add a comment to a post
+ *     description: Allows an authenticated user to comment on a post.
+ *     tags:
+ *       - Posts
+ *     responses:
+ *       201:
+ *         description: Comment added successfully
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.post("/comment", authenticateToken, addComment);
+
+/**
+ * @swagger
+ * /posts/{postId}/comments:
+ *   get:
+ *     summary: Get comments for a post
+ *     description: Retrieves all comments for a given post.
+ *     tags:
+ *       - Posts
+ *     parameters:
+ *       - in: path
+ *         name: postId
+ *         required: true
+ *         description: The ID of the post
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved comments
+ *       404:
+ *         description: Post not found
+ *       500:
+ *         description: Server error
+ */
+router.get("/:postId/comments", getCommentsByPost);
 
 module.exports = router;
