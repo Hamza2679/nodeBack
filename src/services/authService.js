@@ -22,7 +22,6 @@ exports.createUser = async (firstName, lastName, email, password) => {
 exports.loginUser = async (identifier, password) => {
     
 const SECRET_KEY = process.env.JWT_SECRET;
-console.log("SECRET_KEY:", SECRET_KEY);
     const client = await pool.connect();
     try {
         const result = await client.query(
@@ -71,7 +70,7 @@ exports.sendOTP = async (email) => {
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
-        console.log("Generated OTP:", otp); // ✅ Debug Log
+        console.log("Generated OTP:", otp);
 
         await client.query(
             `INSERT INTO password_reset_otp (email, otp, expires_at) 
@@ -81,9 +80,7 @@ exports.sendOTP = async (email) => {
             [email, otp, otpExpiry]
         );
 
-        console.log("OTP stored in database:", otp); // ✅ Debug Log
-        
-        // ✅ Use emailService to send email
+        console.log("OTP stored in database:", otp);
         await emailService.sendEmail(email, otp);
         console.log("OTP email sent successfully");
 
@@ -120,13 +117,11 @@ exports.verifyOTPAndResetPassword = async (email, otp, newPassword) => {
             throw new Error("OTP has expired");
         }
 
-        // Update the user's password
         await client.query(
             `UPDATE users SET password = $1 WHERE email = $2`,
             [newPassword, email]
         );
 
-        // Remove the used OTP
         await client.query(
             `DELETE FROM password_reset_otp WHERE email = $1`,
             [email]
@@ -135,6 +130,38 @@ exports.verifyOTPAndResetPassword = async (email, otp, newPassword) => {
         return { message: "Password has been reset successfully" };
     } catch (error) {
         throw new Error(error.message);
+    } finally {
+        client.release();
+    }
+};
+
+
+
+exports.getAllUsers = async () => {
+    const client = await pool.connect();
+    try {
+        const result = await client.query(
+            'SELECT id, first_name, last_name, email, role FROM users'
+        );
+        return result.rows;
+    } finally {
+        client.release();
+    }
+};
+
+exports.getUserById = async (userId) => {
+    const client = await pool.connect();
+    try {
+        const result = await client.query(
+            'SELECT id, first_name, last_name, email, role FROM users WHERE id = $1',
+            [userId]
+        );
+
+        if (result.rows.length === 0) {
+            throw new Error('User not found');
+        }
+
+        return result.rows[0];
     } finally {
         client.release();
     }

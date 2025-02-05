@@ -1,7 +1,8 @@
-const pool = require("../config/db");
-const Post = require("../models/post");
+const pool = require('../config/db');
+const Post = require('../models/post');
 
 class PostService {
+   
     static async createPost(userId, text, imageUrl) {
         if (!userId) throw new Error("User ID is required");
         if (!text && !imageUrl) throw new Error("Post must contain either text or an image");
@@ -15,9 +16,36 @@ class PostService {
             const row = result.rows[0];
 
             return new Post(row.id, row.userid, row.text, row.image_url, row.created_at, row.updated_at);
-        } catch (error) {
-            console.error("Database Error:", error);
-            throw error;
+        } finally {
+            client.release();
+        }
+    }
+
+   
+    static async getAllPosts() {
+        const client = await pool.connect();
+        try {
+            const query = `SELECT * FROM posts ORDER BY created_at DESC`;
+            const result = await client.query(query);
+
+            return result.rows.map(row => new Post(row.id, row.userid, row.text, row.image_url, row.created_at, row.updated_at));
+        } finally {
+            client.release();
+        }
+    }
+
+    static async getPostById(postId) {
+        if (!postId) throw new Error("Post ID is required");
+
+        const client = await pool.connect();
+        try {
+            const query = `SELECT * FROM posts WHERE id = $1`;
+            const result = await client.query(query, [postId]);
+
+            if (result.rows.length === 0) return null;
+
+            const row = result.rows[0];
+            return new Post(row.id, row.userid, row.text, row.image_url, row.created_at, row.updated_at);
         } finally {
             client.release();
         }

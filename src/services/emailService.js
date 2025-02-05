@@ -18,9 +18,9 @@ exports.sendEmail = async (email, otp) => {
 
     try {
         let info = await transporter.sendMail(mailOptions);
-        console.log("Email sent:", info.response); // ✅ Debug log
+        console.log("Email sent:", info.response);
     } catch (error) {
-        console.error("Error sending email:", error); // ✅ Debug error log
+        console.error("Error sending email:", error);
         throw new Error("Email sending failed");
     }
 };

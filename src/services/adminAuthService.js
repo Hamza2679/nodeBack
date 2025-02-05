@@ -19,7 +19,6 @@ exports.createAdmin = async (firstName, lastName, email, password, universityId,
 exports.loginAdmin = async (identifier, password) => {
     const client = await pool.connect();
     try {
-        // Check if the input is an email or universityId and query accordingly
         const result = await pool.query(
             `SELECT * FROM users WHERE email = $1 OR university_id = $1`, 
             [identifier]
@@ -31,19 +30,16 @@ exports.loginAdmin = async (identifier, password) => {
 
         const admin = result.rows[0];
 
-        // Validate password (Consider hashing with bcrypt in production)
         if (password !== admin.password) {
             throw new Error("Invalid credentials");
         }
 
-        // Generate JWT token
         const token = jwt.sign(
             { adminId: admin.id, email: admin.email, role: admin.role },
             SECRET_KEY,
             { expiresIn: "1h" }
         );
 
-        // Store token in user_token table
         await client.query(
             `INSERT INTO user_token (user_id, acc_token, expire_at) VALUES ($1, $2, NOW() + INTERVAL '1 hour')`,
             [admin.id, token]

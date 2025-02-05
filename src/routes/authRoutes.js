@@ -1,8 +1,6 @@
 const express = require("express");
-
 const authController = require("../controllers/authController");
 const router = express.Router();
-
 
 /**
  * @swagger
@@ -93,7 +91,7 @@ router.post("/signin", authController.signin);
 
 /**
  * @swagger
- * /api/auth/logout:
+ * /auth/logout:
  *   post:
  *     summary: Logout user
  *     description: Logs out a user by deleting their access token from the database.
@@ -124,7 +122,6 @@ router.post("/signin", authController.signin);
  *         description: Internal server error
  */
 router.post("/logout", authController.logout);
-
 
 /**
  * @swagger
@@ -192,5 +189,53 @@ router.post("/send-otp", authController.sendOTP);
  *         description: Internal server error
  */
 router.post("/verify-otp", authController.verifyOTP);
+
+/**
+ * @swagger
+ * tags:
+ *   name: Users
+ *   description: User management APIs
+ */
+
+/**
+ * @swagger
+ * /users:
+ *   get:
+ *     summary: Get all users
+ *     description: Fetches a list of all registered users.
+ *     tags:
+ *       - Users
+ *     responses:
+ *       200:
+ *         description: List of users
+ *       500:
+ *         description: Internal Server Error
+ */
+router.get("/users", authController.getAllUsers);
+
+/**
+ * @swagger
+ * /users/{id}:
+ *   get:
+ *     summary: Get a user by ID
+ *     description: Fetches a single user by their unique ID.
+ *     tags:
+ *       - Users
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the user
+ *     responses:
+ *       200:
+ *         description: User details
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal Server Error
+ */
+router.get("/users/:id", authController.getUserById);
 
 module.exports = router;

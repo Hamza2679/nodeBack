@@ -67,10 +67,33 @@ exports.logout = async (req, res) => {
             return res.status(400).json({ message: "Token is required" });
         }
 
-        // If using JWT, you can ask the client to remove the token.
-        // If storing tokens in a database, remove them from the DB.
         return res.status(200).json({ message: "Logout successful" });
     } catch (error) {
         return res.status(500).json({ message: "Internal server error", error });
+    }
+};
+
+
+exports.getAllUsers = async (req, res) => {
+    try {
+        const users = await authService.getAllUsers();
+        res.status(200).json(users);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+exports.getUserById = async (req, res) => {
+    const { id } = req.params;
+
+    if (!id) {
+        return res.status(400).json({ error: "User ID is required" });
+    }
+
+    try {
+        const user = await authService.getUserById(id);
+        res.status(200).json(user);
+    } catch (error) {
+        res.status(404).json({ error: error.message });
     }
 };

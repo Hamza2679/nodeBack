@@ -14,7 +14,7 @@ const uploadToS3 = async (fileBuffer, fileName, bucketName) => {
         Bucket: bucketName,
         Key: fileName,
         Body: fileBuffer,
-        ContentType: "image/jpeg", // Adjust based on file type
+        ContentType: "image/jpeg",
     };
 
     try {
