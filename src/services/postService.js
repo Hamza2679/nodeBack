@@ -1,14 +1,7 @@
-const pool = require('../config/db');
-const Post = require('../models/post');
+const pool = require("../config/db");
+const Post = require("../models/post");
 
 class PostService {
-    /**
-     * Create a new post
-     * @param {number} userId - User's ID
-     * @param {string} text - Post content (optional)
-     * @param {string} imageUrl - Image URL (optional)
-     * @returns {Promise<Post>} - The created post
-     */
     static async createPost(userId, text, imageUrl) {
         if (!userId) throw new Error("User ID is required");
         if (!text && !imageUrl) throw new Error("Post must contain either text or an image");
@@ -22,6 +15,9 @@ class PostService {
             const row = result.rows[0];
 
             return new Post(row.id, row.userid, row.text, row.image_url, row.created_at, row.updated_at);
+        } catch (error) {
+            console.error("Database Error:", error);
+            throw error;
         } finally {
             client.release();
         }

@@ -1,22 +1,26 @@
 const jwt = require("jsonwebtoken");
 
-exports.authenticateToken = (req, res, next) => {
-    const token = req.headers['authorization'];
 
-    if (!token) {
+exports.authenticateToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader) {
         return res.status(401).json({ message: "Access Denied" });
     }
 
-    jwt.verify(token.split(" ")[1], process.env.JWT_SECRET, (err, user) => {
+    const token = authHeader.split(" ")[1]; // Extract token
+    if (!token) {
+        return res.status(401).json({ message: "Invalid Authorization Format" });
+    }
+
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
         if (err) {
             return res.status(403).json({ message: "Invalid Token" });
         }
-        
+
         req.user = user;
         next();
     });
 };
-
 
 
 
