@@ -3,7 +3,7 @@ const multer = require("multer");
 const { authenticateToken } = require("../middleware/authMiddleware");
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
-const { likePost, unlikePost, getLikesByPost, addComment, getCommentsByPost, createPost, getPosts, getPostById } = require("../controllers/postController");
+const { likePost, unlikePost, getLikesByPost, addComment, getCommentsByPost, createPost, getPosts, getPostById, reportContent, editPost } = require("../controllers/postController");
 
 /**
  * @swagger
@@ -191,5 +191,41 @@ router.post("/comment", authenticateToken, addComment);
  *         description: Server error
  */
 router.get("/:postId/comments", getCommentsByPost);
+
+/**
+ * @swagger
+ * /posts/report:
+ *   post:
+ *     summary: Report a post or comment
+ *     description: Allows users to report inappropriate content.
+ *     tags:
+ *       - Posts
+ *     responses:
+ *       200:
+ *         description: Report submitted successfully
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.post("/report", authenticateToken, reportContent);
+
+/**
+ * @swagger
+ * /posts/edit/{postId}:
+ *   put:
+ *     summary: Edit a post
+ *     description: Allows users to edit their posts, including updating text or image.
+ *     tags:
+ *       - Posts
+ *     responses:
+ *       200:
+ *         description: Post updated successfully
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.put("/edit/:postId", authenticateToken, upload.single("image"), editPost);
 
 module.exports = router;
