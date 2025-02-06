@@ -13,6 +13,22 @@ exports.signup = async (req, res) => {
     }
 };
 
+exports.deleteUser = async (req, res) => {
+    const { id } = req.params;
+
+    if (!id) {
+        return res.status(400).json({ error: "User ID is required" });
+    }
+
+    try {
+        const result = await authService.deleteUser(id);
+        res.status(200).json({ message: "User deleted successfully", result });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+
 
 exports.signin = async (req, res) => {
     const { email, password } = req.body;

@@ -19,6 +19,29 @@ exports.createUser = async (firstName, lastName, email, password) => {
     }
 };
 
+
+exports.deleteUser = async (id) => {
+    const client = await pool.connect();
+    try {
+        // Check if the user exists
+        const userCheck = await client.query('SELECT * FROM users WHERE id = $1', [id]);
+        if (userCheck.rows.length === 0) {
+            throw new Error("User not found");
+        }
+
+        // Delete user's active tokens
+        await client.query('DELETE FROM user_token WHERE user_id = $1', [id]);
+
+        // Delete the user
+        await client.query('DELETE FROM users WHERE id = $1', [id]);
+
+        return { message: "User deleted successfully" };
+    } finally {
+        client.release();
+    }
+};
+
+
 exports.loginUser = async (identifier, password) => {
     
 const SECRET_KEY = process.env.JWT_SECRET;

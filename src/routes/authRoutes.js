@@ -1,6 +1,11 @@
 const express = require("express");
 const authController = require("../controllers/authController");
 const router = express.Router();
+const { authenticateToken } = require("../middleware/authMiddleware");
+
+const { deleteUser } = require("../controllers/postController");
+
+
 
 /**
  * @swagger
@@ -237,5 +242,42 @@ router.get("/users", authController.getAllUsers);
  *         description: Internal Server Error
  */
 router.get("/users/:id", authController.getUserById);
+
+
+
+/**
+ * @swagger
+ * tags:
+ *   name: Users
+ *   description: User management APIs
+ */
+
+/**
+ * @swagger
+ * /api/auth/users/{id}:
+ *   delete:
+ *     summary: Delete a user by ID
+ *     description: Deletes a user from the system by their unique ID.
+ *     tags:
+ *       - Users
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: The unique ID of the user to delete
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: User deleted successfully
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
+ */
+router.delete("/users/:id", authController.deleteUser);
+
+
+
 
 module.exports = router;
