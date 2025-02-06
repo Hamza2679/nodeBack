@@ -20,7 +20,49 @@ class PostService {
             client.release();
         }
     }
+   
+    static async deletePost(userId, postId) {
+        const client = await pool.connect();
+        try {
+            console.log(`Checking if post ${postId} belongs to user ${userId}`);
 
+            // Check if the post exists and belongs to the user
+            const checkQuery = `SELECT * FROM posts WHERE id = $1 AND userid = $2`;
+            const checkResult = await client.query(checkQuery, [postId, userId]);
+
+            if (checkResult.rowCount === 0) {
+                console.log("Post not found or unauthorized");
+                return false;
+            }
+
+            console.log(`Deleting associated reports for post ${postId}`);
+
+            // First, delete reports associated with the post and its comments
+            await client.query(`DELETE FROM report WHERE postid = $1 OR commentid IN (SELECT id FROM comments WHERE postid = $1)`, [postId]);
+
+            console.log(`Deleting associated likes and comments for post ${postId}`);
+
+            // Delete all likes associated with the post
+            await client.query(`DELETE FROM likes WHERE postid = $1`, [postId]);
+
+            // Delete all comments associated with the post
+            await client.query(`DELETE FROM comments WHERE postid = $1`, [postId]);
+
+            console.log(`Deleting post ${postId}`);
+
+            // Now delete the post
+            await client.query(`DELETE FROM posts WHERE id = $1 AND userid = $2`, [postId, userId]);
+
+            return true;
+        } catch (error) {
+            console.error("Database Error in deletePost:", error);
+            throw error;
+        } finally {
+            client.release();
+        }
+    }
+    
+    
    
     static async getAllPosts() {
         const client = await pool.connect();
@@ -53,3 +95,6 @@ class PostService {
 }
 
 module.exports = PostService;
+
+
+

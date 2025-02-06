@@ -3,7 +3,7 @@ const multer = require("multer");
 const { authenticateToken } = require("../middleware/authMiddleware");
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
-const { likePost, unlikePost, getLikesByPost, addComment, getCommentsByPost, createPost, getPosts, getPostById, reportContent, editPost } = require("../controllers/postController");
+const { likePost, unlikePost, getLikesByPost, addComment, getCommentsByPost, createPost, getPosts, getPostById, reportContent, editPost,  deletePost } = require("../controllers/postController");
 
 /**
  * @swagger
@@ -227,5 +227,45 @@ router.post("/report", authenticateToken, reportContent);
  *         description: Server error
  */
 router.put("/edit/:postId", authenticateToken, upload.single("image"), editPost);
+
+
+/**
+ * @swagger
+ * tags:
+ *   name: Posts
+ *   description: Post management APIs
+ */
+
+/**
+ * @swagger
+ * /api/posts/delete/{postId}:
+ *   delete:
+ *     summary: Delete a post
+ *     description: Allows a user to delete their post. Also removes associated reports, likes, and comments.
+ *     tags:
+ *       - Posts
+ *     parameters:
+ *       - in: path
+ *         name: postId
+ *         required: true
+ *         description: The unique ID of the post to delete
+ *         schema:
+ *           type: integer
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Post deleted successfully
+ *       401:
+ *         description: Unauthorized request
+ *       404:
+ *         description: Post not found or unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+router.delete("/delete/:postId", authenticateToken, deletePost);
+
+
+
 
 module.exports = router;
