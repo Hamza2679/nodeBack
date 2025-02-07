@@ -5,6 +5,7 @@ const { authenticateToken } = require("../middleware/authMiddleware");
 
 const { deleteUser } = require("../controllers/postController");
 
+const upload = require('../middleware/upload');
 
 
 /**
@@ -276,7 +277,7 @@ router.get("/users/:id", authController.getUserById);
  *         description: Internal server error
  */
 router.delete("/users/:id", authController.deleteUser);
-
+router.put('/edit-profile', authenticateToken, upload.single('profilePicture'), authController.editProfile);
 
 
 

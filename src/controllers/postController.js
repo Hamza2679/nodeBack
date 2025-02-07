@@ -166,13 +166,14 @@ exports.reportContent = async (req, res) => {
     }
 };
 
-// Edit a Post
+
+
 exports.editPost = async (req, res) => {
     try {
-        const userId = req.user?.userId; 
-        const { postId } = req.params;
-        const { text } = req.body;
-        const imageUrl = req.file ? req.file.buffer.toString("base64") : null; // Example handling image
+        const userId = req.user?.userId;  // Get user ID from the authentication token
+        const { postId } = req.params;  // Get post ID from the request parameters
+        const { text } = req.body;  // Get the text from the request body
+        let imageUrl = null;  // Initialize the image URL
 
         if (!userId) {
             return res.status(401).json({ error: "Unauthorized: No user ID provided" });
@@ -180,37 +181,33 @@ exports.editPost = async (req, res) => {
         if (!postId) {
             return res.status(400).json({ error: "Post ID is required" });
         }
+
+        // If there's an image, upload it to S3
+        if (req.file) {
+            try {
+                imageUrl = await uploadToS3(req.file.buffer, req.file.originalname, 'social-sync-for-final');
+            } catch (uploadError) {
+                console.error("S3 Upload Error:", uploadError);
+                return res.status(500).json({ error: "Failed to upload image to S3" });
+            }
+        }
+
+        // Validate the input data
         if (!text && !imageUrl) {
             return res.status(400).json({ error: "At least one field (text or image) is required for update" });
         }
 
-        const client = await pool.connect();
-        try {
-            // Check if the post belongs to the user
-            const checkQuery = "SELECT userid FROM posts WHERE id = $1";
-            const checkResult = await client.query(checkQuery, [postId]);
+        // Call the PostService to update the post
+        const updatedPost = await PostService.editPost(userId, postId, text, imageUrl);
 
-            if (checkResult.rows.length === 0 || checkResult.rows[0].userid !== userId) {
-                return res.status(403).json({ error: "You can only edit your own posts" });
-            }
-
-            // Update the post
-            const updateQuery = `
-                UPDATE posts 
-                SET text = COALESCE($1, text), image_url = COALESCE($2, image_url), updated_at = NOW() 
-                WHERE id = $3 RETURNING *`;
-            const values = [text || null, imageUrl || null, postId];
-
-            const updatedPost = await client.query(updateQuery, values);
-            res.status(200).json({ message: "Post updated successfully", post: updatedPost.rows[0] });
-        } finally {
-            client.release();
-        }
+        res.status(200).json({ message: "Post updated successfully", post: updatedPost });
     } catch (error) {
         console.error("Edit Post Error:", error);
         res.status(500).json({ error: "Internal Server Error" });
     }
 };
+
+
 exports.deletePost = async (req, res) => {
     try {
         const userId = req.user?.userId;

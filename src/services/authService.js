@@ -5,6 +5,53 @@ const { v4: uuidv4 } = require('uuid');
 const dotenv = require("dotenv");
 const emailService = require('./emailService');
 
+const { uploadToS3 } = require('../services/uploadService'); // Import S3 upload function
+
+
+
+exports.uploadProfilePicture = async (file) => {
+    return await uploadToS3(file.buffer, file.originalname, process.env.AWS_BUCKET_NAME);
+};
+
+// Update User Data (without password update)
+exports.updateUser = async (userId, userData) => {
+    const client = await pool.connect();
+    try {
+        const { firstName, lastName, email, universityId, profilePicture } = userData;
+
+        
+
+const result = await client.query(
+    `UPDATE users 
+     SET first_name = COALESCE($1, first_name), 
+         last_name = COALESCE($2, last_name), 
+         email = COALESCE($3, email), 
+         universityid = COALESCE($4, universityid),  
+         profilepicture = COALESCE($5, profilepicture)
+     WHERE id = $6 
+     RETURNING *`,
+    [firstName, lastName, email, universityId, profilePicture, userId]
+);
+
+
+        if (result.rows.length === 0) {
+            throw new Error('User not found');
+        }
+
+        return new User(
+            result.rows[0].id,
+            result.rows[0].first_name,
+            result.rows[0].last_name,
+            result.rows[0].email,
+            null, // Excluding password
+            result.rows[0].universityid,
+            result.rows[0].profilepicture
+        );
+    } finally {
+        client.release();
+    }
+};
+
 
 exports.createUser = async (firstName, lastName, email, password) => {
     const client = await pool.connect();
@@ -58,7 +105,7 @@ const SECRET_KEY = process.env.JWT_SECRET;
 
         const user = result.rows[0];
         const token = jwt.sign(
-            { userId: user.id, email: user.email, role: user.role },
+            { userId: user.id, email: user.email, role: user.role , universityId: user.universityid , profilePicture: user.profilepicture},
             SECRET_KEY,
             { expiresIn: '90d' }
         );
@@ -69,7 +116,7 @@ const SECRET_KEY = process.env.JWT_SECRET;
             [user.id, token]
         );
 
-        return { id: user.id, firstName: user.first_name, lastName: user.last_name, email: user.email, role: user.role, token };
+        return { id: user.id, firstName: user.first_name, lastName: user.last_name, email: user.email, role: user.role,universityId: user.universityid, profilePicture: user.profilepicture, token };
     } finally {
         client.release();
     }

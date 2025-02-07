@@ -92,6 +92,44 @@ class PostService {
             client.release();
         }
     }
+
+    
+    static async editPost(userId, postId, text, imageUrl) {
+    
+        const client = await pool.connect();
+        try {
+            // Check if the post belongs to the user
+            const checkQuery = "SELECT userid FROM posts WHERE id = $1";
+            const checkResult = await client.query(checkQuery, [postId]);
+    
+            if (checkResult.rows.length === 0 || checkResult.rows[0].userid !== userId) {
+                throw new Error("You can only edit your own posts");
+            }
+    
+            // Update the post in the database
+            const updateQuery = `
+                UPDATE posts 
+                SET text = COALESCE($1, text), 
+                    image_url = COALESCE($2, image_url), 
+                    updated_at = NOW() 
+                WHERE id = $3 
+                RETURNING *`;
+            
+            const values = [text || null, imageUrl || null, postId];
+            const result = await client.query(updateQuery, values);
+    
+            if (result.rows.length === 0) {
+                throw new Error("Post not found");
+            }
+    
+            return result.rows[0];  // Return the updated post
+        } finally {
+            client.release();
+        }
+    };
+    
+
+
 }
 
 module.exports = PostService;

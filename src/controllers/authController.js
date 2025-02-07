@@ -113,3 +113,36 @@ exports.getUserById = async (req, res) => {
         res.status(404).json({ error: error.message });
     }
 };
+
+
+exports.editProfile = async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const { firstName, lastName, email, universityId } = req.body;
+        let profilePictureUrl = null;
+
+        // Handle Profile Picture Upload
+        if (req.file) {
+            try {
+                profilePictureUrl = await authService.uploadProfilePicture(req.file);
+            } catch (uploadError) {
+                console.error("S3 Upload Error:", uploadError);
+                return res.status(500).json({ error: "Failed to upload profile picture" });
+            }
+        }
+
+        // Update User Data
+        const updatedUser = await authService.updateUser(userId, {
+            firstName,
+            lastName,
+            email,
+            universityId,
+            profilePicture: profilePictureUrl,
+        });
+
+        return res.status(200).json({ message: "Profile updated successfully", user: updatedUser });
+    } catch (error) {
+        console.error("Edit Profile Error:", error);
+        return res.status(500).json({ error: "Internal Server Error" });
+    }
+};
