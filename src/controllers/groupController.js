@@ -41,3 +41,21 @@ exports.getGroupById = async (req, res) => {
         res.status(404).json({ error: error.message }); // Send 404 if not found
     }
 };
+
+
+exports.updateGroup = async (req, res) => {
+    try {
+        const { id } = req.params; // Get group ID from request params
+        const { name, description, imageUrl } = req.body;
+        const userId = req.user.userId; // Authenticated user's ID
+
+        if (!name) {
+            return res.status(400).json({ error: "Group name is required" });
+        }
+
+        const updatedGroup = await GroupService.update(id, name, description, imageUrl, userId);
+        res.status(200).json({ message: "Group updated successfully", group: updatedGroup });
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+};

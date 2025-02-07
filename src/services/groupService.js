@@ -43,6 +43,37 @@ class GroupService {
             client.release();
         }
     }
+    
+        static async update(groupId, name, description, imageUrl, userId) {
+            const client = await pool.connect();
+            try {
+                // Check if the group exists and belongs to the user
+                const checkGroup = await client.query(`SELECT * FROM groups WHERE id = $1`, [groupId]);
+                if (checkGroup.rows.length === 0) {
+                    throw new Error("Group not found");
+                }
+                if (checkGroup.rows[0].created_by !== userId) {
+                    throw new Error("Unauthorized: You can only update your own group");
+                }
+    
+                // Update the group
+                const result = await client.query(
+                    `UPDATE groups 
+                     SET name = $1, description = $2, image_url = $3 
+                     WHERE id = $4 RETURNING *`,
+                    [name, description, imageUrl, groupId]
+                );
+    
+                return result.rows[0]; // Return updated group
+            } catch (error) {
+                throw new Error("Error updating group: " + error.message);
+            } finally {
+                client.release();
+            }
+        }
+    
+    
+
 }
 
 module.exports = GroupService;
