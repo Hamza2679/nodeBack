@@ -7,6 +7,8 @@ const {
 } = require("../controllers/groupController");
 const { authenticateToken } = require("../middleware/authMiddleware");
 
+const upload = require('../middleware/upload');
+
 const router = express.Router();
 
 /**
@@ -122,8 +124,8 @@ router.get("/:id", authenticateToken, getGroupById);
  *                 type: string
  *                 example: "Updated description"
  *               imageUrl:
- *                 type: string
- *                 example: "https://example.com/new-image.jpg"
+ *                 type: file
+ *                 example: " "
  *     responses:
  *       200:
  *         description: Group updated successfully
@@ -134,6 +136,6 @@ router.get("/:id", authenticateToken, getGroupById);
  *       404:
  *         description: Group not found
  */
-router.put("/:id", authenticateToken, updateGroup);
+router.put("/edit/:GroupId", authenticateToken, upload.single("image"), updateGroup);
 
 module.exports = router;

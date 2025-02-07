@@ -44,35 +44,39 @@ class GroupService {
         }
     }
     
-        static async update(groupId, name, description, imageUrl, userId) {
-            const client = await pool.connect();
-            try {
-                // Check if the group exists and belongs to the user
-                const checkGroup = await client.query(`SELECT * FROM groups WHERE id = $1`, [groupId]);
-                if (checkGroup.rows.length === 0) {
-                    throw new Error("Group not found");
-                }
-                if (checkGroup.rows[0].created_by !== userId) {
-                    throw new Error("Unauthorized: You can only update your own group");
-                }
-    
-                // Update the group
-                const result = await client.query(
-                    `UPDATE groups 
-                     SET name = $1, description = $2, image_url = $3 
-                     WHERE id = $4 RETURNING *`,
-                    [name, description, imageUrl, groupId]
-                );
-    
-                return result.rows[0]; // Return updated group
-            } catch (error) {
-                throw new Error("Error updating group: " + error.message);
-            } finally {
-                client.release();
-            }
+    static async update(groupId, name, description, imageUrl, userId) {
+        const client = await pool.connect();
+        try {
+            const checkQuery = "SELECT * FROM groups WHERE id = $1";  // Check if the group exists
+console.log("Group ID:", groupId);  // Log the groupId being checked
+const checkResult = await client.query(checkQuery, [groupId]);
+
+console.log("Group Check Result:", checkResult.rows);  // Log the result of the query
+
+if (checkResult.rows.length === 0) {
+    throw new Error("Group not found");
+}
+
+if (checkResult.rows[0].created_by !== userId) {
+    throw new Error("Unauthorized: You can only update your own group");
+}
+
+
+            // Update the group with the provided details
+            const result = await client.query(
+                `UPDATE groups 
+                 SET name = $1, description = $2, image_url = $3 
+                 WHERE id = $4 RETURNING *`,
+                [name, description, imageUrl || null, groupId]
+            );
+
+            return result.rows[0]; // Return updated group details
+        } catch (error) {
+            throw new Error("Error updating group: " + error.message);
+        } finally {
+            client.release();
         }
-    
-    
+    }
 
 }
 

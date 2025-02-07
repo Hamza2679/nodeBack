@@ -92,8 +92,6 @@ class PostService {
             client.release();
         }
     }
-
-    
     static async editPost(userId, postId, text, imageUrl) {
     
         const client = await pool.connect();
@@ -127,8 +125,6 @@ class PostService {
             client.release();
         }
     };
-    
-
 
 }
 

@@ -1,5 +1,7 @@
 const GroupService = require("../services/groupService");
 
+const { uploadToS3 } = require('../services/uploadService'); 
+
 exports.createGroup = async (req, res) => {
     try {
         const { name, description, imageUrl } = req.body;
@@ -45,15 +47,24 @@ exports.getGroupById = async (req, res) => {
 
 exports.updateGroup = async (req, res) => {
     try {
-        const { id } = req.params; // Get group ID from request params
-        const { name, description, imageUrl } = req.body;
-        const userId = req.user.userId; // Authenticated user's ID
-
+        const { GroupId } = req.params;
+        const { name, description } = req.body;
+        const userId = req.user.userId;
         if (!name) {
             return res.status(400).json({ error: "Group name is required" });
         }
 
-        const updatedGroup = await GroupService.update(id, name, description, imageUrl, userId);
+        let imageUrl = null;
+        if (req.file) {
+            try {
+                imageUrl = await uploadToS3(req.file.buffer, req.file.originalname, 'social-sync-for-final');
+            } catch (uploadError) {
+                return res.status(500).json({ error: "Failed to upload image to S3" });
+            }
+        }
+
+        const updatedGroup = await GroupService.update( GroupId, name, description, imageUrl, userId);
+        
         res.status(200).json({ message: "Group updated successfully", group: updatedGroup });
     } catch (error) {
         res.status(400).json({ error: error.message });
