@@ -21,7 +21,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /groups/create:
+ * /api/groups/create:
  *   post:
  *     summary: Create a new group
  *     tags: [Groups]
@@ -62,7 +62,7 @@ router.post("/create", authenticateToken, upload.single("image"), createGroup);
 
 /**
  * @swagger
- * /groups/all:
+ * /api/groups/all:
  *   get:
  *     summary: Get all groups
  *     tags: [Groups]
@@ -78,7 +78,7 @@ router.get("/all", authenticateToken, getAllGroups);
 
 /**
  * @swagger
- * /groups/{id}:
+ * /api/groups/{id}:
  *   get:
  *     summary: Get a group by ID
  *     tags: [Groups]
@@ -103,7 +103,7 @@ router.get("/:id", authenticateToken, getGroupById);
 
 /**
  * @swagger
- * /groups/{id}:
+ * /api/groups/{id}:
  *   put:
  *     summary: Update a group by ID
  *     tags: [Groups]

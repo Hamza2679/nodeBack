@@ -1,0 +1,109 @@
+const pool = require("../config/db");
+const GroupPost = require("../models/groupPost");
+
+class GroupPostService {
+    static async create(group_id, user_id, text, image_url) {
+        const client = await pool.connect();
+        try {
+            const result = await client.query(
+                `INSERT INTO group_posts (group_id, user_id, text, image_url, created_at)
+                 VALUES ($1, $2, $3, $4, NOW()) RETURNING *`,
+                [group_id, user_id, text, image_url]
+            );
+    
+            return result.rows[0];
+        } catch (error) {
+            throw new Error("Error creating post: " + error.message);
+        } finally {
+            client.release();
+        }
+    }
+    
+
+    static async getAllByGroup(groupId) {
+        const client = await pool.connect();
+        try {
+            const result = await client.query(
+                `SELECT * FROM group_posts WHERE group_id = $1 ORDER BY created_at DESC`,
+                [groupId]
+            );
+            return result.rows.map(row => new GroupPost(row.id, row.group_id, row.user_id, row.text, row.image_url, row.created_at));
+        } catch (error) {
+            throw new Error("Error retrieving group posts: " + error.message);
+        } finally {
+            client.release();
+        }
+    }
+
+    static async getById(id) {
+        const client = await pool.connect();
+        try {
+            const result = await client.query(
+                `SELECT * FROM group_posts WHERE id = $1`,
+                [id]
+            );
+            if (result.rows.length === 0) return null;
+            const row = result.rows[0];
+            return new GroupPost(row.id, row.group_id, row.user_id, row.text, row.image_url, row.created_at);
+        } catch (error) {
+            throw new Error("Error retrieving group post: " + error.message);
+        } finally {
+            client.release();
+        }
+    }
+
+    static async delete(id, userId) {
+        const client = await pool.connect();
+        try {
+            const result = await client.query(
+                `DELETE FROM group_posts WHERE id = $1 AND user_id = $2 RETURNING *`,
+                [id, userId]
+            );
+            return result.rowCount > 0;
+        } catch (error) {
+            throw new Error("Error deleting group post: " + error.message);
+        } finally {
+            client.release();
+        }
+    }
+
+    static async update(postId, userId, newText, newImageBuffer, newImageName) {
+        const client = await pool.connect();
+        try {
+            // Check if the post exists and belongs to the user
+            const postCheck = await client.query(
+                `SELECT * FROM group_posts WHERE id = $1 AND user_id = $2`,
+                [postId, userId]
+            );
+
+            if (postCheck.rows.length === 0) {
+                throw new Error("Post not found or unauthorized");
+            }
+
+            let imageUrl = postCheck.rows[0].image_url; // Keep the existing image URL if no new image
+
+            // If a new image is provided, upload to S3
+            if (newImageBuffer && newImageName) {
+                imageUrl = await uploadToS3(newImageBuffer, newImageName);
+            }
+
+            // Update the post in the database
+            const result = await client.query(
+                `UPDATE group_posts 
+                 SET text = $1, image_url = $2 
+                 WHERE id = $3 RETURNING *`,
+                [newText || postCheck.rows[0].text, imageUrl, postId]
+            );
+
+            return result.rows[0];
+        } catch (error) {
+            throw new Error("Error updating post: " + error.message);
+        } finally {
+            client.release();
+        }
+    }
+
+
+}
+
+module.exports = GroupPostService;

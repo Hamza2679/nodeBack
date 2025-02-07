@@ -17,7 +17,7 @@ const upload = require('../middleware/upload');
 
 /**
  * @swagger
- * /auth/signup:
+ * /api/auth/signup:
  *   post:
  *     summary: Register a new user
  *     description: Creates a new user in the database.
@@ -61,7 +61,7 @@ router.post("/signup", authController.signup);
 
 /**
  * @swagger
- * /auth/signin:
+ * /api/auth/signin:
  *   post:
  *     summary: Authenticate user
  *     description: Logs in an existing user and returns user details.
@@ -97,7 +97,7 @@ router.post("/signin", authController.signin);
 
 /**
  * @swagger
- * /auth/logout:
+ * /api/auth/logout:
  *   post:
  *     summary: Logout user
  *     description: Logs out a user by deleting their access token from the database.
@@ -131,7 +131,7 @@ router.post("/logout", authController.logout);
 
 /**
  * @swagger
- * /auth/send-otp:
+ * /api/auth/send-otp:
  *   post:
  *     summary: Send OTP for password reset
  *     tags:
@@ -159,7 +159,7 @@ router.post("/send-otp", authController.sendOTP);
 
 /**
  * @swagger
- * /auth/verify-otp:
+ * /api/auth/verify-otp:
  *   post:
  *     summary: Verify OTP and reset password
  *     tags:
@@ -221,7 +221,7 @@ router.get("/users", authController.getAllUsers);
 
 /**
  * @swagger
- * /users/{id}:
+ * /api/users/{id}:
  *   get:
  *     summary: Get a user by ID
  *     description: Fetches a single user by their unique ID.
@@ -280,7 +280,7 @@ router.delete("/users/:id", authController.deleteUser);
 
 /**
  * @swagger
- * /edit-profile:
+ * /api/edit-profile:
  *   put:
  *     summary: Edit user profile
  *     description: Allows users to update their profile information, including changing their profile picture.

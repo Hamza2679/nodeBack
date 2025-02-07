@@ -5,6 +5,7 @@ const authRoutes = require("./routes/authRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const postRoutes = require("./routes/postRoutes");
 const groupRoutes = require("./routes/groupRoutes");
+const groupPostRoutes = require("./routes/groupPostRoutes");
 const db = require("./config/db");
 const swaggerDocs = require("../swagger");
 
@@ -23,6 +24,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/groups", groupRoutes);
 app.use("/api/posts", postRoutes);
+app.use("/api/groupPosts", groupPostRoutes); 
 swaggerDocs(app);
 
 const PORT = process.env.PORT || 5000;

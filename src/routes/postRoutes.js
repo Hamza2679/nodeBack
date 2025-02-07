@@ -14,7 +14,7 @@ const { likePost, unlikePost, getLikesByPost, addComment, getCommentsByPost, cre
 
 /**
  * @swagger
- * /posts/create:
+ * /api/posts/create:
  *   post:
  *     summary: Create a new post
  *     description: Allows users to create a post with text and/or an image.
@@ -49,7 +49,7 @@ router.post("/create", authenticateToken, upload.single("image"), createPost);
 
 /**
  * @swagger
- * /posts:
+ * /api/posts:
  *   get:
  *     summary: Get all posts
  *     description: Retrieves all posts from the database.
@@ -65,7 +65,7 @@ router.get("/", getPosts);
 
 /**
  * @swagger
- * /posts/{id}:
+ * /api/posts/{id}:
  *   get:
  *     summary: Get a post by ID
  *     description: Retrieves a single post by its unique ID.
@@ -90,7 +90,7 @@ router.get("/:id", getPostById);
 
 /**
  * @swagger
- * /posts/like:
+ * /api/posts/like:
  *   post:
  *     summary: Like a post
  *     description: Allows an authenticated user to like a post.
@@ -108,7 +108,7 @@ router.post("/like", authenticateToken, likePost);
 
 /**
  * @swagger
- * /posts/unlike:
+ * /api/posts/unlike:
  *   post:
  *     summary: Unlike a post
  *     description: Allows an authenticated user to unlike a post.
@@ -126,7 +126,7 @@ router.post("/unlike", authenticateToken, unlikePost);
 
 /**
  * @swagger
- * /posts/{postId}/likes:
+ * /api/posts/{postId}/likes:
  *   get:
  *     summary: Get likes for a post
  *     description: Retrieves all likes for a given post.
@@ -151,7 +151,7 @@ router.get("/:postId/likes", getLikesByPost);
 
 /**
  * @swagger
- * /posts/comment:
+ * /api/posts/comment:
  *   post:
  *     summary: Add a comment to a post
  *     description: Allows an authenticated user to comment on a post.
@@ -169,7 +169,7 @@ router.post("/comment", authenticateToken, addComment);
 
 /**
  * @swagger
- * /posts/{postId}/comments:
+ * /api/posts/{postId}/comments:
  *   get:
  *     summary: Get comments for a post
  *     description: Retrieves all comments for a given post.
@@ -194,7 +194,7 @@ router.get("/:postId/comments", getCommentsByPost);
 
 /**
  * @swagger
- * /posts/report:
+ * /api/posts/report:
  *   post:
  *     summary: Report a post or comment
  *     description: Allows users to report inappropriate content.
@@ -211,7 +211,7 @@ router.get("/:postId/comments", getCommentsByPost);
 router.post("/report", authenticateToken, reportContent);
 /**
  * @swagger
- * /posts/edit/{postId}:
+ * /api/posts/edit/{postId}:
  *   put:
  *     summary: Edit a post
  *     description: Allows users to edit their posts, including updating text or image.
