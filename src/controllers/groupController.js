@@ -4,7 +4,7 @@ const { uploadToS3 } = require('../services/uploadService');
 
 exports.createGroup = async (req, res) => {
     try {
-        const { name, description, imageUrl } = req.body;
+        const { name, description } = req.body;
         const createdBy = req.user?.userId;
 
 
@@ -14,6 +14,14 @@ exports.createGroup = async (req, res) => {
 
         if (!name) {
             return res.status(400).json({ error: "Group name is required" });
+        }
+        let imageUrl = null;
+        if (req.file) {
+            try {
+                imageUrl = await uploadToS3(req.file.buffer, req.file.originalname, 'social-sync-for-final');
+            } catch (uploadError) {
+                return res.status(500).json({ error: "Failed to upload image to S3" });
+            }
         }
 
         const group = await GroupService.create(name, description, imageUrl, createdBy);

@@ -52,7 +52,7 @@ const router = express.Router();
  *       401:
  *         description: Unauthorized
  */
-router.post("/create", authenticateToken, createGroup);
+router.post("/create", authenticateToken, upload.single("image"), createGroup);
 
 /**
  * @swagger
