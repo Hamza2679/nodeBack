@@ -11,7 +11,7 @@ const options = {
         },
         servers: [
             {
-                url: "https://nodeback-final.onrender.com",
+                url: "https://nodeback-final.onrender.com/api",
                 description: "",
             }
         ],

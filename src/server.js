@@ -3,6 +3,7 @@ const dotenv = require("dotenv");
 const authRoutes = require("./routes/authRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const postRoutes = require("./routes/postRoutes");
+const groupRoutes = require("./routes/groupRoutes");
 const db = require("./config/db");
 const swaggerDocs = require("../swagger");
 
@@ -12,7 +13,7 @@ const app = express();
 app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
-
+app.use("/api/groups", groupRoutes);
 app.use("/api/posts", postRoutes);
 swaggerDocs(app);
 
