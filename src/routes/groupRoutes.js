@@ -18,6 +18,7 @@ const router = express.Router();
  *   description: API endpoints for managing groups
  */
 
+
 /**
  * @swagger
  * /groups/create:
@@ -29,29 +30,34 @@ const router = express.Router();
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:  # Use multipart/form-data for file uploads
  *           schema:
  *             type: object
  *             required:
- *               - name
+ *               - name  # 'name' is required, while 'description' and 'image' are optional
  *             properties:
  *               name:
  *                 type: string
  *                 example: "Tech Enthusiasts"
+ *                 description: "The name of the group (required)"
  *               description:
  *                 type: string
  *                 example: "A group for tech lovers"
- *               imageUrl:
+ *                 description: "A brief description of the group (optional)"
+ *               image:
  *                 type: string
- *                 example: "https://example.com/group.jpg"
+ *                 format: binary  # This ensures the file is treated as binary data
+ *                 description: "Group profile image (optional, must be uploaded as a file)"
  *     responses:
  *       201:
  *         description: Group created successfully
  *       400:
- *         description: Group name is required
+ *         description: Bad request (e.g., missing required fields)
  *       401:
  *         description: Unauthorized
  */
+
+
 router.post("/create", authenticateToken, upload.single("image"), createGroup);
 
 /**
@@ -110,22 +116,26 @@ router.get("/:id", authenticateToken, getGroupById);
  *         schema:
  *           type: integer
  *         example: 1
+ *         description: "The unique ID of the group to be updated"
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:  # Use multipart/form-data to support file uploads
  *           schema:
  *             type: object
  *             properties:
  *               name:
  *                 type: string
  *                 example: "Updated Group Name"
+ *                 description: "The new name of the group (optional)"
  *               description:
  *                 type: string
  *                 example: "Updated description"
- *               imageUrl:
- *                 type: file
- *                 example: " "
+ *                 description: "A brief description of the group (optional)"
+ *               image:
+ *                 type: string
+ *                 format: binary  # Ensures the image is treated as a file upload
+ *                 description: "New group profile image (optional, must be uploaded as a file)"
  *     responses:
  *       200:
  *         description: Group updated successfully
@@ -136,6 +146,8 @@ router.get("/:id", authenticateToken, getGroupById);
  *       404:
  *         description: Group not found
  */
+
 router.put("/edit/:GroupId", authenticateToken, upload.single("image"), updateGroup);
+
 
 module.exports = router;

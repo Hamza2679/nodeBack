@@ -277,7 +277,49 @@ router.get("/users/:id", authController.getUserById);
  *         description: Internal server error
  */
 router.delete("/users/:id", authController.deleteUser);
+
+/**
+ * @swagger
+ * /edit-profile:
+ *   put:
+ *     summary: Edit user profile
+ *     description: Allows users to update their profile information, including changing their profile picture.
+ *     tags:
+ *       - Authentication
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:  # Use multipart/form-data to support file uploads
+ *           schema:
+ *             type: object
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 example: "new_username"
+ *                 description: "Updated username (optional)"
+ *               bio:
+ *                 type: string
+ *                 example: "This is my new bio"
+ *                 description: "Updated user bio (optional)"
+ *               profilePicture:
+ *                 type: string
+ *                 format: binary  # Ensures the profile picture is treated as a file upload
+ *                 description: "New profile picture (optional, must be uploaded as a file)"
+ *     responses:
+ *       200:
+ *         description: Profile updated successfully
+ *       400:
+ *         description: Bad request (e.g., invalid input data)
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+
 router.put('/edit-profile', authenticateToken, upload.single('profilePicture'), authController.editProfile);
+
 
 
 

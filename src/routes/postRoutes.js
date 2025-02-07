@@ -209,7 +209,6 @@ router.get("/:postId/comments", getCommentsByPost);
  *         description: Server error
  */
 router.post("/report", authenticateToken, reportContent);
-
 /**
  * @swagger
  * /posts/edit/{postId}:
@@ -218,14 +217,41 @@ router.post("/report", authenticateToken, reportContent);
  *     description: Allows users to edit their posts, including updating text or image.
  *     tags:
  *       - Posts
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: postId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 123
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               text:
+ *                 type: string
+ *                 example: "Updated post content"
+ *               image:
+ *                 type: string
+ *                 format: binary
  *     responses:
  *       200:
  *         description: Post updated successfully
+ *       400:
+ *         description: Bad request (e.g., missing required fields)
  *       401:
  *         description: Unauthorized
+ *       404:
+ *         description: Post not found
  *       500:
  *         description: Server error
  */
+
 router.put("/edit/:postId", authenticateToken, upload.single("image"), editPost);
 
 
