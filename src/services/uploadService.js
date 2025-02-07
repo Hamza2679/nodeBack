@@ -28,7 +28,7 @@ const uploadToS3 = async (fileBuffer, originalFileName, bucketName) => {
             Key: uniqueFileName,
             Body: fileBuffer,
             ContentType: mime.lookup(originalFileName) || "image/jpeg",
-           // ACL: "public-read", // Ensure the file is publicly accessible
+           ACL: "public-read", // Ensure the file is publicly accessible
         };
 
         await s3.send(new PutObjectCommand(uploadParams));
