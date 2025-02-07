@@ -1,19 +1,37 @@
 const PostService = require("../services/postService");
+const { uploadToS3 } = require("../services/uploadService"); // Adjust the path as needed
 
 
 exports.createPost = async (req, res) => {
     try {
         const userId = req.user?.userId;
-        const { text } = req.body;
-        const imageUrl = req.file ? await uploadToS3(req.file.buffer, req.file.originalname, 'social-sync-for-final') : null;
-
         if (!userId) {
             return res.status(401).json({ error: "Unauthorized: No user ID provided" });
         }
 
+        const { text } = req.body;
+        let imageUrl = null;
+
+        // Handle Image Upload Separately
+        if (req.file) {
+            try {
+                imageUrl = await uploadToS3(req.file.buffer, req.file.originalname, 'social-sync-for-final');
+            } catch (uploadError) {
+                console.error("S3 Upload Error:", uploadError);
+                return res.status(500).json({ error: "Failed to upload image" });
+            }
+        }
+
+        // Validate post content
+        if (!text && !imageUrl) {
+            return res.status(400).json({ error: "Post must contain either text or an image" });
+        }
+
+        // Create Post
         const newPost = await PostService.createPost(userId, text, imageUrl);
         return res.status(201).json({ message: "Post created successfully", post: newPost });
     } catch (error) {
+        console.error("Create Post Error:", error);
         res.status(500).json({ error: "Internal Server Error" });
     }
 };
