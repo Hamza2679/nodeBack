@@ -1,40 +1,46 @@
 const express = require("express");
 const dotenv = require("dotenv");
+const cors = require("cors"); 
 const authRoutes = require("./routes/authRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const postRoutes = require("./routes/postRoutes");
 const groupRoutes = require("./routes/groupRoutes");
 const groupPostRoutes = require("./routes/groupPostRoutes");
+const db = require("./config/db");
 const swaggerDocs = require("../swagger");
+const eventRoutes = require("./routes/eventRoutes");
+const path = require("path");
+
 
 dotenv.config();
 const app = express();
 
-// Custom CORS middleware that reflects the request's origin
-app.use((req, res, next) => {
-  const origin = req.headers.origin || "*";
-  // For development, you might allow any origin.
-  // In production, replace the following line with a whitelist check.
-  res.header("Access-Control-Allow-Origin", origin);
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
-  res.header("Access-Control-Allow-Credentials", "true");
+// Define allowed origins
+const allowedOrigins = ["http://127.0.0.1:5500", "http://localhost:2919"];
 
-  // If this is a preflight (OPTIONS) request, send a quick response.
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
-  }
-  next();
-});
+// Use CORS with a custom origin callback
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = "The CORS policy for this site does not allow access from the specified Origin.";
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  methods: "GET,POST,PUT,DELETE",
+  credentials: true
+}));
 
 app.use(express.json());
-
-// Set up your API routes
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/groups", groupRoutes);
 app.use("/api/posts", postRoutes);
 app.use("/api/groupPosts", groupPostRoutes);
+app.use("/api/events", eventRoutes);
 
 swaggerDocs(app);
 
