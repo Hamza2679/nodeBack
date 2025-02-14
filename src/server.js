@@ -10,6 +10,7 @@ const db = require("./config/db");
 const swaggerDocs = require("../swagger");
 const eventRoutes = require("./routes/eventRoutes");
 const path = require("path");
+const messageRoutes = require('./routes/messageRoutes'); // Import message routes
 
 
 dotenv.config();
@@ -41,6 +42,7 @@ app.use("/api/groups", groupRoutes);
 app.use("/api/posts", postRoutes);
 app.use("/api/groupPosts", groupPostRoutes);
 app.use("/api/events", eventRoutes);
+app.use('/api/messages', messageRoutes); // Use message routes
 
 swaggerDocs(app);
 
