@@ -55,3 +55,27 @@ exports.getFollowing = async (req, res) => {
         res.status(400).json({ error: error.message });
     }
 };
+
+
+
+exports.countFollowers = async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        const count = await followService.countFollowers(userId);
+        res.status(200).json({ followers: count });
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+};
+
+exports.countFollowing = async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        const count = await followService.countFollowing(userId);
+        res.status(200).json({ following: count });
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+};

@@ -49,3 +49,21 @@ exports.getFollowing = async (userId) => {
 
     return result.rows;
 };
+
+
+
+exports.countFollowers = async (userId) => {
+    const result = await pool.query(
+        `SELECT COUNT(*) FROM follows WHERE following_id = $1`,
+        [userId]
+    );
+    return parseInt(result.rows[0].count, 10);
+};
+
+exports.countFollowing = async (userId) => {
+    const result = await pool.query(
+        `SELECT COUNT(*) FROM follows WHERE follower_id = $1`,
+        [userId]
+    );
+    return parseInt(result.rows[0].count, 10);
+};

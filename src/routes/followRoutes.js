@@ -7,6 +7,9 @@ router.post('/follow', authenticateToken, FollowController.followUser);
 router.post('/unfollow', authenticateToken, FollowController.unfollowUser);
 router.get('/followers/:userId', FollowController.getFollowers);
 router.get('/following/:userId', FollowController.getFollowing);
+router.get('/count/followers/:userId', FollowController.countFollowers);
+router.get('/count/following/:userId', FollowController.countFollowing);
+
 
 module.exports = router;
 
