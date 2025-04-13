@@ -78,6 +78,74 @@ if (checkResult.rows[0].created_by !== userId) {
         }
     }
 
+    static async joinGroup(groupId, userId) {
+        const client = await pool.connect();
+        try {
+            // Prevent duplicate join
+            const check = await client.query(
+                `SELECT * FROM group_members WHERE group_id = $1 AND user_id = $2`,
+                [groupId, userId]
+            );
+            if (check.rows.length > 0) {
+                throw new Error("User already a member of this group");
+            }
+    
+            const result = await client.query(
+                `INSERT INTO group_members (group_id, user_id, role, joined_at)
+                 VALUES ($1, $2, 'member', NOW()) RETURNING *`,
+                [groupId, userId]
+            );
+            return result.rows[0];
+        } catch (error) {
+            throw new Error("Error joining group: " + error.message);
+        } finally {
+            client.release();
+        }
+    }
+    
+    static async leaveGroup(groupId, userId) {
+        const client = await pool.connect();
+        try {
+            const result = await client.query(
+                `DELETE FROM group_members WHERE group_id = $1 AND user_id = $2 RETURNING *`,
+                [groupId, userId]
+            );
+            if (!result.rows.length) {
+                throw new Error("User is not a member of this group");
+            }
+            return result.rows[0];
+        } catch (error) {
+            throw new Error("Error leaving group: " + error.message);
+        } finally {
+            client.release();
+        }
+    }
+    
+
+    static async isUserMember(groupId, userId) {
+        const client = await pool.connect();
+        try {
+            const result = await client.query(
+                `SELECT * FROM group_members WHERE group_id = $1 AND user_id = $2`,
+                [groupId, userId]
+            );
+            return result.rows.length > 0;
+        } finally {
+            client.release();
+        }
+    }
+    
+
 }
 
 module.exports = GroupService;
+
+
+
+
+
+
+
+
+
+

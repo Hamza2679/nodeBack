@@ -3,6 +3,8 @@ const {
     createGroup, 
     getAllGroups, 
     getGroupById, 
+    joinGroup,
+    leaveGroup,
     updateGroup 
 } = require("../controllers/groupController");
 const { authenticateToken } = require("../middleware/authMiddleware");
@@ -149,5 +151,7 @@ router.get("/:id", authenticateToken, getGroupById);
 
 router.put("/edit/:GroupId", authenticateToken, upload.single("image"), updateGroup);
 
+router.post('/:groupId/join', authenticateToken, joinGroup);
+router.delete('/:groupId/leave', authenticateToken, leaveGroup);
 
 module.exports = router;

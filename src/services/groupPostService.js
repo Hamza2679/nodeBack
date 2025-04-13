@@ -104,6 +104,27 @@ class GroupPostService {
     }
 
 
+
+
+
+    static async isUserGroupMember(groupId, userId) {
+        const client = await pool.connect();
+        try {
+            const result = await client.query(
+                `SELECT * FROM group_members WHERE group_id = $1 AND user_id = $2`,
+                [groupId, userId]
+            );
+            return result.rows.length > 0;
+        } catch (error) {
+            throw new Error("Error checking group membership: " + error.message);
+        } finally {
+            client.release();
+        }
+    }
+    
+
+
+
 }
 
 module.exports = GroupPostService;
