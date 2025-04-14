@@ -3,7 +3,7 @@ const multer = require("multer");
 const { authenticateToken } = require("../middleware/authMiddleware");
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
-const { likePost, unlikePost, getLikesByPost, addComment, getCommentsByPost, createPost, getPosts, getPostById, reportContent, editPost,  deletePost } = require("../controllers/postController");
+const { likePost, unlikePost, getLikesByPost, addComment, getCommentsByPost, createPost, getPosts, getPostsByUserId, reportContent, editPost,  deletePost } = require("../controllers/postController");
 
 /**
  * @swagger
@@ -86,7 +86,7 @@ router.get("/", getPosts);
  *       500:
  *         description: Server error
  */
-router.get("/:id", getPostById);
+router.get("/:id", getPostsByUserId);
 
 /**
  * @swagger

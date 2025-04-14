@@ -76,22 +76,25 @@ class PostService {
         }
     }
 
-    static async getPostById(postId) {
-        if (!postId) throw new Error("Post ID is required");
-
+    
+    static async getPostsByUserId(userId) {
+        if (!userId) throw new Error("User ID is required");
+    
         const client = await pool.connect();
         try {
-            const query = `SELECT * FROM posts WHERE id = $1`;
-            const result = await client.query(query, [postId]);
-
-            if (result.rows.length === 0) return null;
-
-            const row = result.rows[0];
-            return new Post(row.id, row.userid, row.text, row.image_url, row.created_at, row.updated_at);
+            const query = `SELECT * FROM posts WHERE userid = $1 ORDER BY created_at DESC`;
+            const result = await client.query(query, [userId]);
+    
+            return result.rows.map(row => 
+                new Post(row.id, row.userid, row.text, row.image_url, row.created_at, row.updated_at)
+            );
         } finally {
             client.release();
         }
     }
+    
+
+
     static async editPost(userId, postId, text, imageUrl) {
     
         const client = await pool.connect();

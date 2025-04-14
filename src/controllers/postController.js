@@ -46,16 +46,16 @@ exports.getPosts = async (req, res) => {
     }
 };
 
-exports.getPostById = async (req, res) => {
+exports.getPostsByUserId = async (req, res) => {
     try {
         const { id } = req.params;
-        const post = await PostService.getPostById(id);
+        const posts = await PostService.getPostsByUserId(id); // plural
 
-        if (!post) {
-            return res.status(404).json({ error: "Post not found" });
+        if (posts.length === 0) {
+            return res.status(404).json({ error: "No posts found for this user" });
         }
 
-        return res.status(200).json({ post });
+        return res.status(200).json({ posts });
     } catch (error) {
         res.status(500).json({ error: "Internal Server Error" });
     }
