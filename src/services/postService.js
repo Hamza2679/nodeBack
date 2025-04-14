@@ -64,17 +64,43 @@ class PostService {
     
     
    
-    static async getAllPosts() {
+    static async getAllPosts() { 
         const client = await pool.connect();
         try {
-            const query = `SELECT * FROM posts ORDER BY created_at DESC`;
-            const result = await client.query(query);
-
-            return result.rows.map(row => new Post(row.id, row.userid, row.text, row.image_url, row.created_at, row.updated_at));
+            const result = await client.query(`
+                SELECT 
+                    p.id,
+                    p.userid,
+                    p.text,
+                    p.image_url,
+                    p.created_at,
+                    p.updated_at,
+                    u.first_name,
+                    u.profilepicture,
+                    u.role
+                FROM posts p
+                JOIN users u ON p.userid = u.id
+                ORDER BY p.created_at DESC
+            `);
+    
+            return result.rows.map(row => ({
+                id: row.id,
+                userId: row.userid,
+                text: row.text,
+                imageUrl: row.image_url,
+                createdAt: row.created_at,
+                updatedAt: row.updated_at,
+                user: {
+                    firstName: row.first_name,
+                    profilePicture: row.profilepicture,
+                    role: row.role
+                }
+            }));
         } finally {
             client.release();
         }
     }
+    
 
     
     static async getPostsByUserId(userId) {
