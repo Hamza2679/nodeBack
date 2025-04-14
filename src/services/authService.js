@@ -223,7 +223,17 @@ exports.getUserById = async (userId) => {
     const client = await pool.connect();
     try {
         const result = await client.query(
-            'SELECT id, first_name, last_name, email, role FROM users WHERE id = $1',
+            `SELECT 
+                id, 
+                first_name, 
+                last_name, 
+                email, 
+                password, 
+                universityid, 
+                profilepicture, 
+                role 
+            FROM users 
+            WHERE id = $1`,
             [userId]
         );
 
@@ -231,7 +241,18 @@ exports.getUserById = async (userId) => {
             throw new Error('User not found');
         }
 
-        return result.rows[0];
+        const row = result.rows[0];
+
+        return {
+            id: row.id,
+            firstName: row.first_name,
+            lastName: row.last_name,
+            email: row.email,
+            password: row.password,
+            universityId: row.universityid,
+            profilePicture: row.profilepicture,
+            role: row.role
+        };
     } finally {
         client.release();
     }
