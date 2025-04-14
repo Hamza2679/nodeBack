@@ -24,16 +24,44 @@ class GroupPostService {
         const client = await pool.connect();
         try {
             const result = await client.query(
-                `SELECT * FROM group_posts WHERE group_id = $1 ORDER BY created_at DESC`,
+                `SELECT 
+                    gp.id,
+                    gp.group_id,
+                    gp.user_id,
+                    gp.text,
+                    gp.image_url,
+                    gp.created_at,
+                    u.first_name,
+                    u.profilepicture,
+                    u.role
+                FROM group_posts gp
+                JOIN users u ON gp.user_id = u.id
+                WHERE gp.group_id = $1
+                ORDER BY gp.created_at DESC`,
                 [groupId]
             );
-            return result.rows.map(row => new GroupPost(row.id, row.group_id, row.user_id, row.text, row.image_url, row.created_at));
+    
+            return result.rows.map(row => ({
+                id: row.id,
+                groupId: row.group_id,
+                userId: row.user_id,
+                text: row.text,
+                imageUrl: row.image_url,
+                createdAt: row.created_at,
+                user: {
+                    firstName: row.first_name,
+                    profilePicture: row.profilepicture
+                ,role: row.role
+                }
+            }));
+            console.log(profilePicture);
         } catch (error) {
             throw new Error("Error retrieving group posts: " + error.message);
         } finally {
             client.release();
         }
     }
+    
 
     static async getById(id) {
         const client = await pool.connect();
