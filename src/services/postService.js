@@ -61,12 +61,13 @@ class PostService {
             client.release();
         }
     }
-    
-    
-    static async getAllPosts(currentUserId) {
+
+
+    static async getAllPosts(currentUserId, limit = 5, offset = 0) {
         const client = await pool.connect();
+    
         try {
-            const result = await client.query(`
+            const query = `
                 SELECT 
                     p.id,
                     p.userid,
@@ -77,13 +78,19 @@ class PostService {
                     u.first_name,
                     u.profilepicture,
                     u.role,
+                    (SELECT COUNT(*) FROM likes l WHERE l.postid = p.id) AS like_count,
+                    (SELECT COUNT(*) FROM comments c WHERE c.postid = p.id) AS comment_count,
                     (SELECT COUNT(*) > 0 
                      FROM likes l 
                      WHERE l.postid = p.id AND l.userid = $1) AS liked_by_current_user
                 FROM posts p
                 JOIN users u ON p.userid = u.id
                 ORDER BY p.created_at DESC
-            `, [currentUserId]);
+                LIMIT $2 OFFSET $3
+            `;
+    
+            const values = [currentUserId, limit, offset];
+            const result = await client.query(query, values);
     
             return result.rows.map(row => ({
                 id: row.id,
@@ -93,6 +100,8 @@ class PostService {
                 createdAt: row.created_at,
                 updatedAt: row.updated_at,
                 likedByCurrentUser: row.liked_by_current_user,
+                likeCount: parseInt(row.like_count, 10),
+                commentCount: parseInt(row.comment_count, 10),
                 user: {
                     firstName: row.first_name,
                     profilePicture: row.profilepicture,
@@ -103,6 +112,8 @@ class PostService {
             client.release();
         }
     }
+    
+    
     
 
     

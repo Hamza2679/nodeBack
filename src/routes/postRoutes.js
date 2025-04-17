@@ -61,7 +61,7 @@ router.post("/create", authenticateToken, upload.single("image"), createPost);
  *       500:
  *         description: Server error
  */
-router.get("/", getPosts);
+router.get("/",authenticateToken, getPosts);
 
 /**
  * @swagger
