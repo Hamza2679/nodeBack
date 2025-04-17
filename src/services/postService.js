@@ -63,7 +63,7 @@ class PostService {
     }
 
 
-    static async getAllPosts(currentUserId, limit = 5, offset = 0) {
+    static async getAllPosts(currentUserId, limit = 8, offset = 0) {
         const client = await pool.connect();
     
         try {
