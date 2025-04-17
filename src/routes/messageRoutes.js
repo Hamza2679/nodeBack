@@ -179,4 +179,50 @@ router.patch("/:messageId", authenticateToken, editMessage);
  */
 router.delete("/:messageId", authenticateToken, deleteMessage);
 
+/**
+ * @swagger
+ * /api/messages/conversation/{userId}/paginated:
+ *   get:
+ *     summary: Get paginated conversation with a user
+ *     description: Retrieve a paginated list of messages between the authenticated user and another user.
+ *     tags:
+ *       - Messages
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 123
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         schema:
+ *           type: integer
+ *         description: Number of messages to fetch (default 20)
+ *         example: 20
+ *       - in: query
+ *         name: offset
+ *         required: false
+ *         schema:
+ *           type: integer
+ *         description: Number of messages to skip (default 0)
+ *         example: 0
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved paginated messages
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.get(
+    "/conversation/:receiverId/paginated",
+    authenticateToken,
+    require("../controllers/messageController").getPaginatedMessages
+  );
+  
+
 module.exports = router;

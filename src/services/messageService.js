@@ -54,6 +54,35 @@ class MessageService {
         }
     }
 
+    static async getMessagesBetweenUsersPaginated(userId1, userId2, limit = 10, offset = 0) {
+        const client = await pool.connect();
+        try {
+            const query = `
+                SELECT *
+                FROM messages
+                WHERE (sender_id = $1 AND receiver_id = $2)
+                   OR (sender_id = $2 AND receiver_id = $1)
+                ORDER BY created_at DESC
+                LIMIT $3 OFFSET $4;
+            `;
+            const result = await client.query(query, [userId1, userId2, limit, offset]);
+    
+            return result.rows.map(row => new Message(
+                row.id,
+                row.sender_id,
+                row.receiver_id,
+                row.text,
+                row.image_url,
+                row.created_at,
+                row.edited_at,
+                row.is_deleted
+            ));
+        } finally {
+            client.release();
+        }
+    }
+    
+
     static async getMessagesByUser(userId) {
         const client = await pool.connect();
         try {

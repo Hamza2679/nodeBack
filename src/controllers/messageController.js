@@ -71,6 +71,22 @@ exports.getRecentChats = async (req, res) => {
     }
 };
 
+exports.getPaginatedMessages = async (req, res) => {
+    try {
+        const senderId = req.user.userId;
+        const receiverId = req.params.receiverId;
+        const limit = parseInt(req.query.limit) || 20;
+        const offset = parseInt(req.query.offset) || 0;
+        const messages = await MessageService.getMessagesBetweenUsersPaginated(senderId, receiverId, limit, offset);
+
+        res.status(200).json({ messages });
+    } catch (error) {
+        console.error("Get Paginated Messages Error:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+};
+
+
 /**
  * Edit a message
  */

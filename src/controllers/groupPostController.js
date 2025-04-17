@@ -1,4 +1,5 @@
 const GroupPostService = require("../services/groupPostService");
+const { getIo } = require("../utils/socket");
 const { uploadToS3 } = require("../services/uploadService");
 
 exports.createGroupPost = async (req, res) => {
@@ -17,6 +18,18 @@ exports.createGroupPost = async (req, res) => {
         }
 
         const newPost = await GroupPostService.create(group_id, user_id, text, imageUrl);
+
+        const io = getIO();
+        io.to(`group_${group_id}`).emit("new_group_post", {
+            ...newPost,
+            user: {
+                firstName: req.user.firstName,
+                profilePicture: req.user.profilePicture,
+                role: req.user.role
+            }
+        });
+        
+
 
         res.status(201).json({ message: "Post created successfully", post: newPost });
     } catch (error) {
