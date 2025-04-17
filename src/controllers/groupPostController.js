@@ -42,16 +42,23 @@ exports.createGroupPost = async (req, res) => {
 exports.getGroupPosts = async (req, res) => {
     try {
         const { groupId } = req.params;
+        const { limit = 10, page = 1 } = req.query;
+
         if (!groupId) {
             return res.status(400).json({ error: "Group ID is required" });
         }
 
-        const groupPosts = await GroupPostService.getAllByGroup(groupId);
+        const parsedLimit = parseInt(limit);
+        const parsedPage = parseInt(page);
+        const offset = (parsedPage - 1) * parsedLimit;
+
+        const groupPosts = await GroupPostService.getAllByGroup(groupId, parsedLimit, offset);
         res.status(200).json(groupPosts);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 };
+
 
 exports.getGroupPostById = async (req, res) => {
     try {

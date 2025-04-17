@@ -20,7 +20,7 @@ class GroupPostService {
     }
     
 
-    static async getAllByGroup(groupId) {
+    static async getAllByGroup(groupId, limit = 10, offset = 0) {
         const client = await pool.connect();
         try {
             const result = await client.query(
@@ -37,8 +37,9 @@ class GroupPostService {
                 FROM group_posts gp
                 JOIN users u ON gp.user_id = u.id
                 WHERE gp.group_id = $1
-                ORDER BY gp.created_at DESC`,
-                [groupId]
+                ORDER BY gp.created_at DESC
+                LIMIT $2 OFFSET $3`,
+                [groupId, limit, offset]
             );
     
             return result.rows.map(row => ({
@@ -50,17 +51,17 @@ class GroupPostService {
                 createdAt: row.created_at,
                 user: {
                     firstName: row.first_name,
-                    profilePicture: row.profilepicture
-                ,role: row.role
+                    profilePicture: row.profilepicture,
+                    role: row.role
                 }
             }));
-            console.log(profilePicture);
         } catch (error) {
             throw new Error("Error retrieving group posts: " + error.message);
         } finally {
             client.release();
         }
     }
+    
     
 
     static async getById(id) {
