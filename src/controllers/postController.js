@@ -39,16 +39,29 @@ exports.createPost = async (req, res) => {
 
 exports.getPosts = async (req, res) => {
     try {
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = parseInt(req.query.offset) || 0;
         const currentUserId = req.user?.userId;
-      const limit = parseInt(req.query.limit) || 10;
-      const offset = parseInt(req.query.offset) || 0;
-      const posts = await PostService.getAllPosts(currentUserId, limit, offset);
-      
-      return res.status(200).json({ posts });
+
+        const { posts, total } = await PostService.getAllPosts(currentUserId, limit, offset);
+
+        const hasNextPage = offset + posts.length < total;
+
+        return res.status(200).json({
+            posts,
+            pagination: {
+                total,
+                limit,
+                offset,
+                hasNextPage
+            }
+        });
     } catch (error) {
-      res.status(500).json({ error: "Internal Server Error" });
+        console.error("Pagination error:", error);
+        res.status(500).json({ error: "Internal Server Error" });
     }
-  };
+};
+
   
 
 exports.getPostsByUserId = async (req, res) => {

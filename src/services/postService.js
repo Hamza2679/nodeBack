@@ -63,11 +63,11 @@ class PostService {
     }
 
 
-    static async getAllPosts(currentUserId, limit = 8, offset = 0) {
+    static async getAllPosts(currentUserId, limit = 5, offset = 0) {
         const client = await pool.connect();
     
         try {
-            const query = `
+            const postsQuery = `
                 SELECT 
                     p.id,
                     p.userid,
@@ -89,10 +89,13 @@ class PostService {
                 LIMIT $2 OFFSET $3
             `;
     
-            const values = [currentUserId, limit, offset];
-            const result = await client.query(query, values);
+            const countQuery = `SELECT COUNT(*) FROM posts`; // total post count
     
-            return result.rows.map(row => ({
+            const postsResult = await client.query(postsQuery, [currentUserId, limit, offset]);
+            const countResult = await client.query(countQuery);
+            const total = parseInt(countResult.rows[0].count, 10);
+    
+            const posts = postsResult.rows.map(row => ({
                 id: row.id,
                 userId: row.userid,
                 text: row.text,
@@ -108,10 +111,14 @@ class PostService {
                     role: row.role
                 }
             }));
+    
+            return { posts, total };
+    
         } finally {
             client.release();
         }
     }
+    
     
     
     
