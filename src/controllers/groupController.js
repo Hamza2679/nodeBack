@@ -46,13 +46,16 @@ exports.getAllGroups = async (req, res) => {
 
 exports.getGroupById = async (req, res) => {
     try {
-        const { id } = req.params; // Get ID from request params
-        const group = await GroupService.getById(id);
+        const { id } = req.params;
+        const userId = req.user?.userId;
+
+        const group = await GroupService.getById(id, userId);
         res.status(200).json(group);
     } catch (error) {
-        res.status(404).json({ error: error.message }); // Send 404 if not found
+        res.status(404).json({ error: error.message });
     }
 };
+
 
 
 exports.updateGroup = async (req, res) => {

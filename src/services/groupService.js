@@ -45,20 +45,31 @@ class GroupService {
 
 
 
-    static async getById(groupId) {
+    static async getById(groupId, userId) {
         const client = await pool.connect();
         try {
-            const result = await client.query(`SELECT * FROM groups WHERE id = $1`, [groupId]);
+            const result = await client.query(`
+                SELECT
+                    g.*,
+                    EXISTS (
+                        SELECT 1 FROM group_members gm
+                        WHERE gm.group_id = g.id AND gm.user_id = $2
+                    ) AS is_joined
+                FROM groups g
+                WHERE g.id = $1
+            `, [groupId, userId]);
+    
             if (result.rows.length === 0) {
                 throw new Error("Group not found");
             }
-            return result.rows[0]; // Return the group
+            return result.rows[0];
         } catch (error) {
             throw new Error("Error fetching group: " + error.message);
         } finally {
             client.release();
         }
     }
+    
     
     static async update(groupId, name, description, imageUrl, userId) {
         const client = await pool.connect();
