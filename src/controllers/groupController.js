@@ -34,12 +34,14 @@ exports.createGroup = async (req, res) => {
 
 exports.getAllGroups = async (req, res) => {
     try {
-        const groups = await GroupService.getAll();
+        const userId =req.user?.userId;
+        const groups = await GroupService.getAll(userId);
         res.status(200).json(groups);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 };
+
 
 
 exports.getGroupById = async (req, res) => {

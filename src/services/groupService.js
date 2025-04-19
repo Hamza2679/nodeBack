@@ -18,17 +18,33 @@ class GroupService {
             client.release();
         }
     }
-    static async getAll() {
+    
+
+    static async getAll(userId) {
         const client = await pool.connect();
         try {
-            const result = await client.query(`SELECT * FROM groups ORDER BY created_at DESC`);
-            return result.rows; // Return all groups
+            const result = await client.query(`
+                SELECT 
+                    g.*, 
+                    EXISTS (
+                        SELECT 1 FROM group_members gm 
+                        WHERE gm.group_id = g.id AND gm.user_id = $1
+                    ) AS is_joined
+                FROM groups g
+                ORDER BY g.created_at DESC
+            `, [userId]);
+    
+            return result.rows;
         } catch (error) {
             throw new Error("Error fetching groups: " + error.message);
         } finally {
             client.release();
         }
     }
+    
+
+
+
     static async getById(groupId) {
         const client = await pool.connect();
         try {
