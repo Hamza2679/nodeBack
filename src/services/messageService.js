@@ -99,6 +99,8 @@ class MessageService {
                     u.id AS other_user_id,
                     u.first_name,
                     u.last_name,
+                    u.email,
+                    u.role,
                     u.profilepicture
                 FROM messages m
                 JOIN users u ON u.id = CASE 
@@ -127,6 +129,8 @@ class MessageService {
                     id: row.other_user_id,
                     firstName: row.first_name,
                     lastName: row.last_name,
+                    email: row.email,
+                    role: row.role,
                     profileImage: row.profilepicture
                 }
             }));
