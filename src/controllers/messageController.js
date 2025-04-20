@@ -71,6 +71,7 @@ exports.getRecentChats = async (req, res) => {
     }
 };
 
+
 exports.getPaginatedMessages = async (req, res) => {
     try {
         const senderId = req.user.userId;

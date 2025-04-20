@@ -87,26 +87,54 @@ class MessageService {
         const client = await pool.connect();
         try {
             const query = `
-                SELECT DISTINCT ON (least(sender_id, receiver_id), greatest(sender_id, receiver_id)) *
-                FROM messages
-                WHERE sender_id = $1 OR receiver_id = $1
-                ORDER BY least(sender_id, receiver_id), greatest(sender_id, receiver_id), created_at DESC`;
-            
+                SELECT DISTINCT ON (LEAST(m.sender_id, m.receiver_id), GREATEST(m.sender_id, m.receiver_id))
+                    m.id,
+                    m.sender_id,
+                    m.receiver_id,
+                    m.text,
+                    m.image_url,
+                    m.created_at,
+                    m.edited_at,
+                    m.is_deleted,
+                    u.id AS other_user_id,
+                    u.first_name,
+                    u.last_name,
+                    u.profilepicture
+                FROM messages m
+                JOIN users u ON u.id = CASE 
+                    WHEN m.sender_id = $1 THEN m.receiver_id 
+                    ELSE m.sender_id 
+                END
+                WHERE m.sender_id = $1 OR m.receiver_id = $1
+                ORDER BY 
+                    LEAST(m.sender_id, m.receiver_id), 
+                    GREATEST(m.sender_id, m.receiver_id), 
+                    m.created_at DESC
+            `;
+    
             const result = await client.query(query, [userId]);
-            return result.rows.map(row => new Message(
-                row.id,
-                row.sender_id,
-                row.receiver_id,
-                row.text,
-                row.image_url,
-                row.created_at,
-                row.edited_at,
-                row.is_deleted
-            ));
+    
+            return result.rows.map(row => ({
+                id: row.id,
+                senderId: row.sender_id,
+                receiverId: row.receiver_id,
+                text: row.text,
+                imageUrl: row.image_url,
+                createdAt: row.created_at,
+                editedAt: row.edited_at,
+                isDeleted: row.is_deleted,
+                otherUser: {
+                    id: row.other_user_id,
+                    firstName: row.first_name,
+                    lastName: row.last_name,
+                    profileImage: row.profilepicture
+                }
+            }));
         } finally {
             client.release();
         }
     }
+    
 
     static async editMessage(messageId, userId, newText) {
         const client = await pool.connect();
