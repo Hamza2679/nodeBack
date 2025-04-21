@@ -40,65 +40,53 @@ function initSocket(server) {
     // ... rest of your event listeners like send_message, edit_message, etc.
   
   
-
     socket.on("send_message", async (data) => {
       const { senderId, receiverId, text, image } = data;
-
-      // ✅ Basic validation
+    
       if (!senderId || !receiverId || (!text && !image)) {
         return socket.emit("error", { message: "Invalid message data." });
       }
-
+    
       try {
         let imageUrl = null;
-
+    
         if (image && image.base64 && image.name) {
           const buffer = Buffer.from(image.base64, "base64");
           const fileName = `${Date.now()}-${image.name}`;
-          try {
-            imageUrl = await uploadToS3(buffer, fileName, "social-sync-for-final");
-          } catch (uploadErr) {
-            console.error("Image upload failed:", uploadErr);
-            return socket.emit("error", { message: "Image upload failed." });
-          }
+          imageUrl = await uploadToS3(buffer, fileName, "social-sync-for-final");
         }
-
+    
         const message = await MessageService.createMessage(senderId, receiverId, text, imageUrl);
-
+    
         const receiverSocketId = users.get(receiverId);
         if (receiverSocketId) {
           io.to(receiverSocketId).emit("receive_message", message);
-          console.log("📩 New message emitted to receiver:", message); // If not using `.toJson()`
+          console.log(`📩 Message sent to ${receiverId}`);
+          console.log('reciver Message:', message);
         }
-        
-        // 🔁 Emit to sender as well
-        io.to(socket.id).emit("receive_message", message);
-        console.log("📩 New message emitted to sender:", message); // If not using `.toJson()`
-
-
-        socket.emit("send_message", {
-          id: message.id,
-          senderId: message.senderId,
-          receiverId: message.receiverId,
-          text: message.text,
-          imageUrl: message.imageUrl,
-          createdAt: message.createdAt,
-          editedAt: message.editedAt,
-          isDeleted: message.isDeleted,
-        });
-        console.log("📩 Message sent to sender:", message); // If not using `.toJson()`
-        
-
+    
+        io.to(socket.id).emit("receive_message", message); // Send back to sender too
+        console.log(`📤 Message sent back to sender ${senderId}`);
+    
       } catch (err) {
         console.error("💥 Error sending message:", err);
         socket.emit("error", { message: "Failed to send message." });
       }
     });
+    
 
     // ✅ Ping-pong heartbeat
     socket.on("ping", () => {
       socket.emit("pong");
     });
+
+    socket.on('join', ({ userId }) => {
+      if (userId) {
+        socket.join(userId);
+        console.log(`👥 User ${userId} joined their personal room`);
+      }
+    });
+    
 
     socket.on("disconnect", () => {
       console.log("❌ Disconnected:", socket.id);
