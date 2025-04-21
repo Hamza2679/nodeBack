@@ -69,6 +69,10 @@ function initSocket(server) {
         if (receiverSocketId) {
           io.to(receiverSocketId).emit("receive_message", message);
         }
+        
+        // 🔁 Emit to sender as well
+        io.to(socket.id).emit("receive_message", message);
+        
 
         socket.emit("message_sent", message);
       } catch (err) {
