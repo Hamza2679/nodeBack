@@ -39,7 +39,6 @@ function initSocket(server) {
   
     // ... rest of your event listeners like send_message, edit_message, etc.
   
-  
     socket.on("send_message", async (data) => {
       const { senderId, receiverId, text, image } = data;
     
@@ -58,15 +57,13 @@ function initSocket(server) {
     
         const message = await MessageService.createMessage(senderId, receiverId, text, imageUrl);
     
-        const receiverSocketId = users.get(receiverId);
-        if (receiverSocketId) {
-          io.to(receiverSocketId).emit("receive_message", message);
-          console.log(`📩 Message sent to ${receiverId}`);
-          console.log('reciver Message:', message);
-        }
+        // ✅ Emit to receiver's room
+        io.to(receiverId).emit("receive_message", message);
+        console.log(`📩 Message emitted to receiver ${receiverId}:`, message);
     
-        io.to(socket.id).emit("receive_message", message); // Send back to sender too
-        console.log(`📤 Message sent back to sender ${senderId}`);
+        // ✅ Emit to sender's room
+        io.to(senderId).emit("receive_message", message);
+        console.log(`📤 Message emitted to sender ${senderId}:`, message);
     
       } catch (err) {
         console.error("💥 Error sending message:", err);
