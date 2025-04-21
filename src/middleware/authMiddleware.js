@@ -28,7 +28,6 @@ exports.verifyToken = (token) => {
         if (err) {
           reject(err);
         } else {
-          console.log("✅ Decoded token user:", user); // <-- See what the payload actually contains
           resolve(user.userId); // ← Adjust this based on your payload
         }
       });

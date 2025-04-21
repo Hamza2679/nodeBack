@@ -74,7 +74,8 @@ function initSocket(server) {
         io.to(socket.id).emit("receive_message", message);
         
 
-        socket.emit("message_sent", message);
+        socket.emit('send_message', message.toJson()); // ✅ sends a proper map
+
       } catch (err) {
         console.error("💥 Error sending message:", err);
         socket.emit("error", { message: "Failed to send message." });
