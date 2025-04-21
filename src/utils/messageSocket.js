@@ -68,11 +68,13 @@ function initSocket(server) {
         const receiverSocketId = users.get(receiverId);
         if (receiverSocketId) {
           io.to(receiverSocketId).emit("receive_message", message);
+          console.log("📩 New message emitted to receiver:", message); // If not using `.toJson()`
         }
         
         // 🔁 Emit to sender as well
         io.to(socket.id).emit("receive_message", message);
-        
+        console.log("📩 New message emitted to sender:", message); // If not using `.toJson()`
+
 
         socket.emit('send_message', message); // ✅ sends a proper map
 
