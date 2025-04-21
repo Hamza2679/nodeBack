@@ -76,7 +76,18 @@ function initSocket(server) {
         console.log("📩 New message emitted to sender:", message); // If not using `.toJson()`
 
 
-        socket.emit('send_message', message); // ✅ sends a proper map
+        socket.emit("send_message", {
+          id: message.id,
+          senderId: message.senderId,
+          receiverId: message.receiverId,
+          text: message.text,
+          imageUrl: message.imageUrl,
+          createdAt: message.createdAt,
+          editedAt: message.editedAt,
+          isDeleted: message.isDeleted,
+        });
+        console.log("📩 Message sent to sender:", message); // If not using `.toJson()`
+        
 
       } catch (err) {
         console.error("💥 Error sending message:", err);
