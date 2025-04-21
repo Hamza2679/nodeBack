@@ -59,11 +59,9 @@ function initSocket(server) {
     
         // ✅ Emit to receiver's room
         io.to(receiverId).emit("receive_message", message);
-        console.log(`📩 Message emitted to receiver ${receiverId}:`, message);
     
         // ✅ Emit to sender's room
         io.to(senderId).emit("receive_message", message);
-        console.log(`📤 Message emitted to sender ${senderId}:`, message);
     
       } catch (err) {
         console.error("💥 Error sending message:", err);

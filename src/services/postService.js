@@ -112,7 +112,7 @@ class PostService {
                 }
             }));
     
-            return { posts, total };
+            return { posts, total,   hasMore: offset + limit < total };
     
         } finally {
             client.release();
