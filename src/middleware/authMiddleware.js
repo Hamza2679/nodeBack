@@ -22,23 +22,14 @@ exports.authenticateToken = (req, res, next) => {
     });
 };
 
-
-
-exports.verifyToken = (req, res, next) => {
-    const token = req.header("Authorization");
-
-    if (!token) {
-        return res.status(401).json({ error: "Access denied: No token provided" });
-    }
-
-    try {
-        const decoded = jwt.verify(token.replace("Bearer ", ""), process.env.JWT_SECRET);
-        req.user = decoded; // Attach user info to request
-        next();
-    } catch (error) {
-        console.error("JWT Verification Error:", error.message); // Log error for debugging
-        return res.status(403).json({ error: "Invalid token" });
-    }
-};
-
-
+exports.verifyToken = (token) => {
+    return new Promise((resolve, reject) => {
+      jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(user.id); // or resolve(user) if you want the whole user payload
+        }
+      });
+    });
+  };
