@@ -67,7 +67,7 @@ function initSocket(server) {
 
         const receiverSocketId = users.get(receiverId);
         if (receiverSocketId) {
-          io.to(receiverSocketId).emit("receive_message", message);
+          io.to(receiverSocketId).emit("receive_message", message.toJson);
         }
         
         // 🔁 Emit to sender as well
