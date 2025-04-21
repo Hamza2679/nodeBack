@@ -67,14 +67,14 @@ function initSocket(server) {
 
         const receiverSocketId = users.get(receiverId);
         if (receiverSocketId) {
-          io.to(receiverSocketId).emit("receive_message", message.toJson);
+          io.to(receiverSocketId).emit("receive_message", message);
         }
         
         // 🔁 Emit to sender as well
         io.to(socket.id).emit("receive_message", message);
         
 
-        socket.emit('send_message', message.toJson()); // ✅ sends a proper map
+        socket.emit('send_message', message); // ✅ sends a proper map
 
       } catch (err) {
         console.error("💥 Error sending message:", err);
