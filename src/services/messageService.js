@@ -36,7 +36,7 @@ class MessageService {
                 SELECT * FROM messages
                 WHERE (sender_id = $1 AND receiver_id = $2)
                    OR (sender_id = $2 AND receiver_id = $1)
-                ORDER BY created_at ASC
+                ORDER BY created_at DESC
                 LIMIT $3 OFFSET $4
             `;
     
@@ -51,23 +51,27 @@ class MessageService {
     
             const total = parseInt(countResult.rows[0].count, 10);
     
-            const messages = messagesResult.rows.map(row => new Message(
-                row.id,
-                row.sender_id,
-                row.receiver_id,
-                row.text,
-                row.image_url,
-                row.created_at,
-                row.edited_at,
-                row.is_deleted
-            ));
+            // reverse the order to ASC (so frontend displays in correct order)
+            const messages = messagesResult.rows
+                .map(row => new Message(
+                    row.id,
+                    row.sender_id,
+                    row.receiver_id,
+                    row.text,
+                    row.image_url,
+                    row.created_at,
+                    row.edited_at,
+                    row.is_deleted
+                ))
+                .reverse();
     
             return { messages, total };
-    
         } finally {
             client.release();
         }
     }
+    
+    
     
     static async getMessagesBetweenUsersPaginated(userId1, userId2, limit = 10, offset = 0) {
         const client = await pool.connect();
