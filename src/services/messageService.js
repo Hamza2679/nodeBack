@@ -29,7 +29,7 @@ class MessageService {
         }
     }
 
-    static async getConversation(user1Id, user2Id, limit = 20, offset = 0) {
+    static async getConversation(user1Id, user2Id, limit = 10, offset = 0) {
         const client = await pool.connect();
         try {
             const messagesQuery = `
@@ -63,7 +63,6 @@ class MessageService {
                     row.edited_at,
                     row.is_deleted
                 ))
-                .reverse();
     
             return { messages, total };
         } finally {
