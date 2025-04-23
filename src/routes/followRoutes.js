@@ -29,7 +29,7 @@ const { authenticateToken } = require('../middleware/authMiddleware');
  *       400:
  *         description: Bad request
  */
-router.post('/follow', authenticateToken, FollowController.followUser);
+router.post('/follow/:followingId', authenticateToken, FollowController.followUser);
 
 /**
  * @swagger
@@ -57,7 +57,7 @@ router.post('/follow', authenticateToken, FollowController.followUser);
  *       400:
  *         description: Bad request
  */
-router.post('/unfollow', authenticateToken, FollowController.unfollowUser);
+router.post('/unfollow/:followingId', authenticateToken, FollowController.unfollowUser);
 
 /**
  * @swagger

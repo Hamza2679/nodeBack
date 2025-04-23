@@ -1,9 +1,9 @@
 const followService = require("../services/followService");
 
+// POST /follow/:followingId
 exports.followUser = async (req, res) => {
     const followerId = req.user.userId;
-
-    const { followingId } = req.body;
+    const { followingId } = req.params;
 
     if (!followingId) {
         return res.status(400).json({ error: "Following ID is required" });
@@ -17,9 +17,10 @@ exports.followUser = async (req, res) => {
     }
 };
 
+// DELETE /unfollow/:followingId
 exports.unfollowUser = async (req, res) => {
-    const followerId = req.user.id;
-    const { followingId } = req.body;
+    const followerId = req.user.userId; // Ensure consistency with token property
+    const { followingId } = req.params;
 
     if (!followingId) {
         return res.status(400).json({ error: "Following ID is required" });
