@@ -79,3 +79,18 @@ exports.countFollowing = async (req, res) => {
         res.status(400).json({ error: error.message });
     }
 };
+exports.checkFollow = async (req, res) => {
+    const followerId = req.user.userId;
+    const { followingId } = req.params;
+
+    if (!followingId) {
+        return res.status(400).json({ error: "Following ID is required" });
+    }
+
+    try {
+        const isFollowing = await followService.checkFollow(followerId, followingId);
+        res.status(200).json({ isFollowing });
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+};

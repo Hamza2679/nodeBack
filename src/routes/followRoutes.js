@@ -139,4 +139,24 @@ router.get('/count/followers/:userId', FollowController.countFollowers);
  */
 router.get('/count/following/:userId', FollowController.countFollowing);
 
+/**
+ * @swagger
+ * /follow/check/{followingId}:
+ *   get:
+ *     summary: Check if a user is followed
+ *     tags: [Follow]
+ *     parameters:
+ *       - in: path
+ *         name: followingId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the user to check
+ *     responses:
+ *       200:
+ *         description: Follow status
+ */
+
+router.get('/follow/check/:followingId', authenticateToken, FollowController.checkFollow);
+
 module.exports = router;
