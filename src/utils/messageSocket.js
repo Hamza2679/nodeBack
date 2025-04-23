@@ -31,12 +31,29 @@ function initSocket(server) {
   
       console.log(`✅ Registered user ${userId} with socket ${socket.id}`);
       socket.broadcast.emit("user_online", userId);
+      
     } catch (err) {
       console.error("Auth error:", err.message);
       socket.emit("error", { message: "Authentication failed." });
       socket.disconnect(true);
     }
   
+    const othersStatus = Array.from(users.keys).reduce((acc, uid) => {
+      acc[uid] = true;
+      return acc;
+    }, {});
+    socket.emit("initial_status", othersStatus);
+  });
+  
+  // Add new handler for status checks
+  socket.on('check_status', ({ userId }) => {
+    const isOnline = users.has(userId);
+    socket.emit('user_status', {
+      userId: userId,
+      isOnline: isOnline
+    });
+  
+
     // ... rest of your event listeners like send_message, edit_message, etc.
   
     socket.on("send_message", async (data) => {
