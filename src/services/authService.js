@@ -164,45 +164,46 @@ exports.sendOTP = async (email) => {
 };
 
 
-exports.verifyOTPAndResetPassword = async (email, otp, newPassword) => {
-    const client = await pool.connect();
-    try {
-        const otpResult = await client.query(
-            `SELECT otp, expires_at FROM password_reset_otp WHERE email = $1`,
-            [email]
-        );
+exports.verifyOTP = async (email, otp) => {
+  const client = await pool.connect();
+  try {
+    const otpResult = await client.query(
+      `SELECT otp, expires_at FROM password_reset_otp WHERE email = $1`,
+      [email]
+    );
 
-        if (otpResult.rows.length === 0) {
-            throw new Error("Invalid or expired OTP");
-        }
+    if (otpResult.rows.length === 0) throw new Error("Invalid or expired OTP");
+    const storedOTP = otpResult.rows[0].otp;
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // still UTC
 
-        const storedOTP = otpResult.rows[0].otp;
-        const expiresAt = new Date(otpResult.rows[0].expires_at);
-        
-        if (storedOTP !== otp) {
-            throw new Error("Incorrect OTP");
-        }
 
-        if (expiresAt < new Date()) {
-            throw new Error("OTP has expired");
-        }
+    if (storedOTP !== otp) throw new Error("Incorrect OTP");
+    if (new Date(expiresAt) < new Date()) {
+        throw new Error("OTP has expired");
+      }
+      
 
-        await client.query(
-            `UPDATE users SET password = $1 WHERE email = $2`,
-            [newPassword, email]
-        );
+    return { message: "OTP verified successfully" };
+  } finally {
+    client.release();
+  }
+};
 
-        await client.query(
-            `DELETE FROM password_reset_otp WHERE email = $1`,
-            [email]
-        );
-
-        return { message: "Password has been reset successfully" };
-    } catch (error) {
-        throw new Error(error.message);
-    } finally {
-        client.release();
-    }
+exports.resetPassword = async (email, newPassword) => {
+  const client = await pool.connect();
+  try {
+    await client.query(
+      `UPDATE users SET password = $1 WHERE email = $2`,
+      [newPassword, email]
+    );
+    await client.query(
+      `DELETE FROM password_reset_otp WHERE email = $1`,
+      [email]
+    );
+    return { message: "Password reset successfully" };
+  } finally {
+    client.release();
+  }
 };
 
 
