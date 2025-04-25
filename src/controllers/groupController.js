@@ -47,15 +47,26 @@ exports.getAllGroups = async (req, res) => {
 exports.getGroupById = async (req, res) => {
     try {
         const { id } = req.params;
-        const userId = req.user?.userId;
+        const userId = req.user.userId;
 
         const group = await GroupService.getById(id, userId);
+        console.log('Group details:', group);
+
         res.status(200).json(group);
     } catch (error) {
         res.status(404).json({ error: error.message });
     }
 };
 
+exports.getGroupMembers = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const members = await GroupService.getGroupMembers(id);
+        res.status(200).json(members);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
 
 
 exports.updateGroup = async (req, res) => {

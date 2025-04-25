@@ -5,7 +5,8 @@ const {
     getGroupById, 
     joinGroup,
     leaveGroup,
-    updateGroup 
+    updateGroup ,
+    getGroupMembers
 } = require("../controllers/groupController");
 const { authenticateToken } = require("../middleware/authMiddleware");
 
@@ -153,5 +154,34 @@ router.put("/edit/:GroupId", authenticateToken, upload.single("image"), updateGr
 
 router.post('/:groupId/join', authenticateToken, joinGroup);
 router.delete('/:groupId/leave', authenticateToken, leaveGroup);
+
+
+router.get('/:id/members', authenticateToken, getGroupMembers);
+
+
+
+/**
+ * @swagger
+ * /api/groups/{id}/members:
+ *   get:
+ *     summary: Get members of a group
+ *     tags: [Groups]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 1
+ *     responses:
+ *       200:
+ *         description: List of group members
+ *       404:
+ *         description: Group not found
+ *       401:
+ *         description: Unauthorized
+ */
 
 module.exports = router;

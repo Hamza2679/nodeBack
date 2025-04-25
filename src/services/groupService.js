@@ -44,13 +44,21 @@ class GroupService {
     
 
 
-
     static async getById(groupId, userId) {
         const client = await pool.connect();
         try {
             const result = await client.query(`
                 SELECT
-                    g.*,
+                    g.id,
+                    g.name,
+                    g.description,
+                    g.image_url,
+                    g.created_by,
+                    g.created_at,
+                    (
+                        SELECT COUNT(*) FROM group_members gm
+                        WHERE gm.group_id = g.id
+                    )::int AS member_count,
                     EXISTS (
                         SELECT 1 FROM group_members gm
                         WHERE gm.group_id = g.id AND gm.user_id = $2
@@ -62,9 +70,36 @@ class GroupService {
             if (result.rows.length === 0) {
                 throw new Error("Group not found");
             }
+    
             return result.rows[0];
         } catch (error) {
             throw new Error("Error fetching group: " + error.message);
+        } finally {
+            client.release();
+        }
+    }
+
+    
+    
+    
+    static async getGroupMembers(groupId) {
+        const client = await pool.connect();
+        try {
+            const result = await client.query(`
+                SELECT 
+                    u.id,
+                    u.first_name,
+                    u.last_name,
+                    u.profilepicture,
+                    gm.role
+                FROM group_members gm
+                JOIN users u ON gm.user_id = u.id
+                WHERE gm.group_id = $1
+            `, [groupId]);
+    
+            return result.rows;
+        } catch (error) {
+            throw new Error("Error fetching group members: " + error.message);
         } finally {
             client.release();
         }
