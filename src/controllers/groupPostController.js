@@ -103,14 +103,11 @@ exports.updateGroupPost = async (req, res) => {
         const { text } = req.body;
         const postId = req.params.id;
         const userId = req.user.userId; 
-        console.log("userId", userId);
-        console.log("postId", postId);
         if (!text && !req.file) {
             return res.status(400).json({ error: "No content to update" });
         }
 
         const currentPost = await GroupPostService.getById(postId);
-        console.log("currentPost", currentPost.userId);
         
         if (!currentPost || currentPost.userId !== userId) {
             return res.status(404).json({ error: "Post not found or unauthorized" });

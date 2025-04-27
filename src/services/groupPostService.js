@@ -96,34 +96,26 @@ class GroupPostService {
         }
     }
 
-    static async update(postId, userId, newText, newImageBuffer, newImageName) {
+    static async update(postId, userId, newText, imageUrl) {
         const client = await pool.connect();
         try {
-            // Check if the post exists and belongs to the user
             const postCheck = await client.query(
                 `SELECT * FROM group_posts WHERE id = $1 AND user_id = $2`,
                 [postId, userId]
             );
-
+    
             if (postCheck.rows.length === 0) {
                 throw new Error("Post not found or unauthorized");
             }
-
-            let imageUrl = postCheck.rows[0].image_url; // Keep the existing image URL if no new image
-
-            // If a new image is provided, upload to S3
-            if (newImageBuffer && newImageName) {
-                imageUrl = await uploadToS3(newImageBuffer, newImageName);
-            }
-
-            // Update the post in the database
+    
+            // Update directly without trying to upload again
             const result = await client.query(
                 `UPDATE group_posts 
                  SET text = $1, image_url = $2 
                  WHERE id = $3 RETURNING *`,
                 [newText || postCheck.rows[0].text, imageUrl, postId]
             );
-
+    
             return result.rows[0];
         } catch (error) {
             throw new Error("Error updating post: " + error.message);
@@ -131,6 +123,7 @@ class GroupPostService {
             client.release();
         }
     }
+    
 
 
 
