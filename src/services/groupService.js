@@ -91,7 +91,7 @@ class GroupService {
                     u.first_name,
                     u.last_name,
                     u.profilepicture,
-                    gm.role
+                    u.role
                 FROM group_members gm
                 JOIN users u ON gm.user_id = u.id
                 WHERE gm.group_id = $1
