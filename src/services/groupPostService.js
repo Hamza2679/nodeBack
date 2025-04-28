@@ -20,7 +20,7 @@ class GroupPostService {
     }
     
 
-    static async getAllByGroup(groupId, limit = 10, offset = 0) {
+    static async getAllByGroup(groupId, limit = 100, offset = 0) {
         const client = await pool.connect();
         try {
             const result = await client.query(
@@ -32,6 +32,7 @@ class GroupPostService {
                     gp.image_url,
                     gp.created_at,
                     u.first_name,
+                    u.last_name,
                     u.profilepicture,
                     u.role
                 FROM group_posts gp
@@ -51,6 +52,7 @@ class GroupPostService {
                 createdAt: row.created_at,
                 user: {
                     firstName: row.first_name,
+                    lastName: row.last_name,
                     profilePicture: row.profilepicture,
                     role: row.role
                 }
