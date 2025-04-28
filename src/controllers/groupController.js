@@ -133,3 +133,28 @@ exports.leaveGroup = async (req, res) => {
     res.status(500).json({ error: 'Failed to leave group' });
   }
 };
+
+exports.deleteGroup = async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const userId = req.user?.userId;
+
+        if (!userId) {
+            return res.status(401).json({ error: "Unauthorized: Missing User Info" });
+        }
+
+        if (!groupId) {
+            return res.status(400).json({ error: "Group ID is required" });
+        }
+
+        const deleted = await GroupService.delete(groupId, userId);
+
+        if (deleted) {
+            res.status(200).json({ message: "Group deleted successfully" });
+        } else {
+            res.status(403).json({ error: "Not authorized to delete this group or group not found" });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};

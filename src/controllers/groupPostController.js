@@ -42,7 +42,7 @@ exports.createGroupPost = async (req, res) => {
 exports.getGroupPosts = async (req, res) => {
     try {
         const { groupId } = req.params;
-        const { limit = 10, page = 1 } = req.query;
+        const { limit = 100, page = 1 } = req.query;
 
         if (!groupId) {
             return res.status(400).json({ error: "Group ID is required" });
