@@ -153,7 +153,7 @@ const pool = require("../config/db");
 // Report a Post or Comment
 exports.reportContent = async (req, res) => {
     try {
-        const userId = req.user?.userId; 
+        const userId = req.user?.userId;
         const { postId, commentId, reason } = req.body;
 
         if (!userId) {
@@ -169,7 +169,7 @@ exports.reportContent = async (req, res) => {
         const client = await pool.connect();
         try {
             const query = `
-                INSERT INTO report (userid, postid, commentid, reason) 
+                INSERT INTO report (reporterid, postid, commentid, reason) 
                 VALUES ($1, $2, $3, $4) RETURNING *`;
             const values = [userId, postId || null, commentId || null, reason];
 

@@ -17,14 +17,16 @@ class AdminService {
   static async getUserStatistics() {
     const client = await pool.connect();
     try {
-      const totalUsers  = await client.query("SELECT COUNT(*) FROM users");
+      const totalUsers = await client.query("SELECT COUNT(*) FROM users");
+  
       const activeUsers = await client.query(
-        "SELECT COUNT(*) FROM users WHERE last_login >= NOW() - INTERVAL '30 days'"
+        "SELECT COUNT(DISTINCT user_id) FROM user_token"
       );
-      const newUsers    = await client.query(
+  
+      const newUsers = await client.query(
         "SELECT COUNT(*) FROM users WHERE created_at >= NOW() - INTERVAL '30 days'"
       );
-
+  
       return {
         totalUsers:  parseInt(totalUsers.rows[0].count, 10),
         activeUsers: parseInt(activeUsers.rows[0].count, 10),
@@ -34,7 +36,7 @@ class AdminService {
       client.release();
     }
   }
-
+  
   static async getContentStatistics() {
     const client = await pool.connect();
     try {
