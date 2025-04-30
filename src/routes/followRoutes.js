@@ -29,7 +29,7 @@ const { authenticateToken } = require('../middleware/authMiddleware');
  *       400:
  *         description: Bad request
  */
-router.post('/follow', authenticateToken, FollowController.followUser);
+router.post('/follow/:followingId', authenticateToken, FollowController.followUser);
 
 /**
  * @swagger
@@ -57,7 +57,7 @@ router.post('/follow', authenticateToken, FollowController.followUser);
  *       400:
  *         description: Bad request
  */
-router.post('/unfollow', authenticateToken, FollowController.unfollowUser);
+router.post('/unfollow/:followingId', authenticateToken, FollowController.unfollowUser);
 
 /**
  * @swagger
@@ -138,5 +138,25 @@ router.get('/count/followers/:userId', FollowController.countFollowers);
  *         description: Following count
  */
 router.get('/count/following/:userId', FollowController.countFollowing);
+
+/**
+ * @swagger
+ * /follow/check/{followingId}:
+ *   get:
+ *     summary: Check if a user is followed
+ *     tags: [Follow]
+ *     parameters:
+ *       - in: path
+ *         name: followingId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the user to check
+ *     responses:
+ *       200:
+ *         description: Follow status
+ */
+
+router.get('/follow/check/:followingId', authenticateToken, FollowController.checkFollow);
 
 module.exports = router;

@@ -194,7 +194,8 @@ router.post("/send-otp", authController.sendOTP);
  *       500:
  *         description: Internal server error
  */
-router.post("/verify-otp", authController.verifyOTP);
+router.post('/verify-otp', authController.verifyOTP);
+router.post('/reset-password', authController.resetPassword);
 
 /**
  * @swagger

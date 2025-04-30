@@ -101,20 +101,35 @@ exports.sendOTP = async (req, res) => {
     }
 };
 
+
 exports.verifyOTP = async (req, res) => {
-    const { email, otp, newPassword } = req.body;
+  const { email, otp } = req.body;
+  if (!email || !otp) {
+    return res.status(400).json({ error: "Email and OTP are required." });
+  }
 
-    if (!email || !otp || !newPassword) {
-        return res.status(400).json({ error: "All fields are required" });
-    }
-
-    try {
-        const result = await authService.verifyOTPAndResetPassword(email, otp, newPassword);
-        res.status(200).json(result);
-    } catch (error) {
-        res.status(400).json({ error: error.message });
-    }
+  try {
+    const result = await authService.verifyOTP(email, otp);
+    res.status(200).json(result);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 };
+
+exports.resetPassword = async (req, res) => {
+  const { email, newPassword } = req.body;
+  if (!email || !newPassword) {
+    return res.status(400).json({ error: "Email and new password required." });
+  }
+
+  try {
+    const result = await authService.resetPassword(email, newPassword);
+    res.status(200).json(result);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
 exports.logout = async (req, res) => {
     try {
         const { token } = req.body;

@@ -1,5 +1,5 @@
 const GroupPostService = require("../services/groupPostService");
-const { getIo } = require("../utils/socket");
+// const { getIo } = require("../utils/socket");
 const { uploadToS3 } = require("../services/uploadService");
 
 exports.createGroupPost = async (req, res) => {
@@ -19,15 +19,15 @@ exports.createGroupPost = async (req, res) => {
 
         const newPost = await GroupPostService.create(group_id, user_id, text, imageUrl);
 
-        const io = getIO();
-        io.to(`group_${group_id}`).emit("new_group_post", {
-            ...newPost,
-            user: {
-                firstName: req.user.firstName,
-                profilePicture: req.user.profilePicture,
-                role: req.user.role
-            }
-        });
+        // const io = getIO();
+        // io.to(`group_${group_id}`).emit("new_group_post", {
+        //     ...newPost,
+        //     user: {
+        //         firstName: req.user.firstName,
+        //         profilePicture: req.user.profilePicture,
+        //         role: req.user.role
+        //     }
+        // });
         
 
 
@@ -42,7 +42,7 @@ exports.createGroupPost = async (req, res) => {
 exports.getGroupPosts = async (req, res) => {
     try {
         const { groupId } = req.params;
-        const { limit = 10, page = 1 } = req.query;
+        const { limit = 100, page = 1 } = req.query;
 
         if (!groupId) {
             return res.status(400).json({ error: "Group ID is required" });
@@ -81,7 +81,7 @@ exports.getGroupPostById = async (req, res) => {
 exports.deleteGroupPost = async (req, res) => {
     try {
         const { id } = req.params;
-        const userId = req.user.id;
+        const userId = req.user?.userId; 
 
         if (!id) {
             return res.status(400).json({ error: "Post ID is required" });
@@ -103,14 +103,11 @@ exports.updateGroupPost = async (req, res) => {
         const { text } = req.body;
         const postId = req.params.id;
         const userId = req.user.userId; 
-        console.log("userId", userId);
-        console.log("postId", postId);
         if (!text && !req.file) {
             return res.status(400).json({ error: "No content to update" });
         }
 
         const currentPost = await GroupPostService.getById(postId);
-        console.log("currentPost", currentPost.userId);
         
         if (!currentPost || currentPost.userId !== userId) {
             return res.status(404).json({ error: "Post not found or unauthorized" });

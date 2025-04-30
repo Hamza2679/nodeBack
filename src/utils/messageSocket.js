@@ -31,7 +31,8 @@ function initSocket(server) {
   
       console.log(`✅ Registered user ${userId} with socket ${socket.id}`);
       socket.broadcast.emit("user_online", userId);
-      socket.emit("initial_status", Array.from(users.keys()));
+      const onlineUsers = Array.from(users.keys()).map(id => ({ userId: id }));
+  socket.emit("initial_status", onlineUsers);
       
     } catch (err) {
       console.error("Auth error:", err.message);
@@ -40,13 +41,15 @@ function initSocket(server) {
     }
    // Add new handler for status checks
    socket.on("check_status", (targetUserId) => {
-    const isOnline = users.has(targetUserId);
-    socket.emit("user_status", {
-      userId: targetUserId,
-      isOnline
-    });
+    // Handle both object and string formats
+    const userIdToCheck = targetUserId?.userId || targetUserId;
+    const isOnline = users.has(userIdToCheck);
     
+    socket.emit("user_status", {
+      userId: userIdToCheck,
+      isOnline: isOnline
     });
+  });
   
  
   
@@ -98,16 +101,14 @@ function initSocket(server) {
     
 
     socket.on("disconnect", () => {
-      console.log("❌ Disconnected:", socket.id);
-
-      for (const [userId, socketId] of users.entries()) {
-        if (socketId === socket.id) {
-          users.delete(userId);
-          socket.broadcast.emit("user_offline", userId); // Notify others
-          break;
-        }
+      const userId = socket.userId;
+      if (userId) {
+        users.delete(userId);
+        // Send as object
+        socket.broadcast.emit("user_offline", { userId: userId });
       }
     });
+    
     // 🔄 Edit Message
 socket.on("edit_message", async ({ messageId, newText }) => {
   if (!messageId || !newText) {

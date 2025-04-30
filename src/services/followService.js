@@ -38,6 +38,18 @@ exports.getFollowers = async (userId) => {
     return result.rows;
 };
 
+exports.checkFollow = async (followerId, followingId) => {
+    const result = await pool.query(
+        `SELECT 1 FROM follows 
+         WHERE follower_id = $1 AND following_id = $2 
+         LIMIT 1`,
+        [followerId, followingId]
+    );
+
+    return result.rowCount > 0;
+};
+
+
 exports.getFollowing = async (userId) => {
     const result = await pool.query(
         `SELECT users.*

@@ -18,6 +18,37 @@ class GroupService {
             client.release();
         }
     }
+    static async delete(groupId, userId) {
+        const client = await pool.connect();
+        try {
+            // First check if the group exists and belongs to the user
+            const groupResult = await client.query(
+                `SELECT * FROM groups WHERE id = $1`,
+                [groupId]
+            );
+    
+            if (groupResult.rowCount === 0) {
+                return false; // Group not found
+            }
+    
+            const group = groupResult.rows[0];
+            if (group.created_by !== userId) {
+                return false; // User is not the creator
+            }
+    
+            // Now delete the group
+            await client.query(
+                `DELETE FROM groups WHERE id = $1`,
+                [groupId]
+            );
+    
+            return true;
+        } catch (error) {
+            throw new Error("Error deleting group: " + error.message);
+        } finally {
+            client.release();
+        }
+    }
     
 
     static async getAll(userId) {
@@ -44,13 +75,21 @@ class GroupService {
     
 
 
-
     static async getById(groupId, userId) {
         const client = await pool.connect();
         try {
             const result = await client.query(`
                 SELECT
-                    g.*,
+                    g.id,
+                    g.name,
+                    g.description,
+                    g.image_url,
+                    g.created_by,
+                    g.created_at,
+                    (
+                        SELECT COUNT(*) FROM group_members gm
+                        WHERE gm.group_id = g.id
+                    )::int AS member_count,
                     EXISTS (
                         SELECT 1 FROM group_members gm
                         WHERE gm.group_id = g.id AND gm.user_id = $2
@@ -62,9 +101,36 @@ class GroupService {
             if (result.rows.length === 0) {
                 throw new Error("Group not found");
             }
+    
             return result.rows[0];
         } catch (error) {
             throw new Error("Error fetching group: " + error.message);
+        } finally {
+            client.release();
+        }
+    }
+
+    
+    
+    
+    static async getGroupMembers(groupId) {
+        const client = await pool.connect();
+        try {
+            const result = await client.query(`
+                SELECT 
+                    u.id,
+                    u.first_name,
+                    u.last_name,
+                    u.profilepicture,
+                    u.role
+                FROM group_members gm
+                JOIN users u ON gm.user_id = u.id
+                WHERE gm.group_id = $1
+            `, [groupId]);
+    
+            return result.rows;
+        } catch (error) {
+            throw new Error("Error fetching group members: " + error.message);
         } finally {
             client.release();
         }
@@ -74,11 +140,8 @@ class GroupService {
     static async update(groupId, name, description, imageUrl, userId) {
         const client = await pool.connect();
         try {
-            const checkQuery = "SELECT * FROM groups WHERE id = $1";  // Check if the group exists
-console.log("Group ID:", groupId);  // Log the groupId being checked
+            const checkQuery = "SELECT * FROM groups WHERE id = $1";
 const checkResult = await client.query(checkQuery, [groupId]);
-
-console.log("Group Check Result:", checkResult.rows);  // Log the result of the query
 
 if (checkResult.rows.length === 0) {
     throw new Error("Group not found");
@@ -87,9 +150,6 @@ if (checkResult.rows.length === 0) {
 if (checkResult.rows[0].created_by !== userId) {
     throw new Error("Unauthorized: You can only update your own group");
 }
-
-
-            // Update the group with the provided details
             const result = await client.query(
                 `UPDATE groups 
                  SET name = $1, description = $2, image_url = $3 
@@ -97,7 +157,7 @@ if (checkResult.rows[0].created_by !== userId) {
                 [name, description, imageUrl || null, groupId]
             );
 
-            return result.rows[0]; // Return updated group details
+            return result.rows[0];
         } catch (error) {
             throw new Error("Error updating group: " + error.message);
         } finally {
@@ -108,7 +168,6 @@ if (checkResult.rows[0].created_by !== userId) {
     static async joinGroup(groupId, userId) {
         const client = await pool.connect();
         try {
-            // Prevent duplicate join
             const check = await client.query(
                 `SELECT * FROM group_members WHERE group_id = $1 AND user_id = $2`,
                 [groupId, userId]
