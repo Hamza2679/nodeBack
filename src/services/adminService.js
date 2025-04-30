@@ -1,7 +1,7 @@
 const pool = require("../config/db");
 const OneSignal = require("onesignal-node");
 // At the top of your adminRoutes.js
-const UserService = require('./userService');
+const UserService = require('../services/UserService');
 const https = require('https');
 
 // Add this before creating your OneSignal client
