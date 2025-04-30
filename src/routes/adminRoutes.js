@@ -1,7 +1,7 @@
 // routes/adminRoutes.js
 const express = require("express");
 const adminAuthController = require("../controllers/adminauthController");
-const AdminService = require('../services/AdminService');
+const AdminService = require('../services/adminService');
 const { authenticateToken, authorizeRoles } = require("../middleware/authMiddleware");
 const router = express.Router();
 const { pool } = require('../config/db');
