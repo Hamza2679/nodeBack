@@ -110,7 +110,7 @@ router.get('/users', AdminController.getUsers);
 router.put('/users/:id/status', AdminController.updateUserStatus);
 router.put('/users/:id/role', AdminController.updateUserRole);
 router.put('/users/:id/details', AdminController.updateUserDetails);
-router.delete('/users/:id', AdminController.softDeleteUser);
+// router.delete('/users/:id', AdminController.softDeleteUser);
 router.delete('/users/:id', AdminController.deleteUser);
 
 
