@@ -1,45 +1,5 @@
 const authService = require('../services/authService');
-const jwt = require("jsonwebtoken");
-const pool = require("../config/db");
 
-exports.login = async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        
-        // 1. Find user by email
-        const user = await pool.query(
-            "SELECT * FROM users WHERE email = $1", 
-            [email]
-        );
-
-        // 2. Check if user exists
-        if (user.rows.length === 0) {
-            return res.status(401).json({ message: "Invalid credentials" });
-        }
-
-        // 3. Verify password (assuming you have password hashing)
-        const validPassword = await bcrypt.compare(
-            password, 
-            user.rows[0].password
-        );
-
-        if (!validPassword) {
-            return res.status(401).json({ message: "Invalid credentials" });
-        }
-
-        // 4. Create JWT token
-        const token = jwt.sign(
-            { userId: user.id, role: user.role },  // ← Must include 'role'
-            process.env.JWT_SECRET,
-            { expiresIn: '1h' }
-        );
-
-        res.json({ token });
-    } catch (error) {
-        console.error("Login error:", error);
-        res.status(500).json({ message: "Server error" });
-    }
-};
 exports.signup = async (req, res) => {
     const { firstName, lastName, email, password } = req.body;
     if (!firstName || !lastName || !email || !password) {
