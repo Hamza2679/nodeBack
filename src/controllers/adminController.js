@@ -12,6 +12,26 @@ exports.getDashboardStats = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+exports.deleteUser = async (req, res) => {
+  try {
+    const result = await AdminService.deleteUser(req.params.id);
+
+    res.status(200).json({
+      success: true,
+      message: 'User deleted successfully',
+      data: result
+    });
+
+  } catch (error) {
+    console.error('Delete error:', error);
+
+    res.status(error.statusCode || 500).json({
+      success: false,
+      error: error.message || 'Failed to delete user',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+};
 
 exports.getReports = async (req, res) => {
   try {

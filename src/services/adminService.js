@@ -36,6 +36,35 @@ class AdminService {
       client.release();
     }
   }
+  static async deleteUser(userId) {
+    const client = await pool.connect();
+    try {
+      // Check if user exists
+      const userRes = await client.query('SELECT id FROM users WHERE id = $1', [userId]);
+      if (userRes.rows.length === 0) throw new Error("User not found");
+  
+      await client.query('BEGIN');
+      
+      // Delete all dependent records first
+      await client.query('DELETE FROM user_token WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM posts WHERE userid = $1', [userId]);
+      await client.query('DELETE FROM comments WHERE userid = $1', [userId]);
+      
+      // Then delete the user
+      await client.query('DELETE FROM users WHERE id = $1', [userId]);
+      
+      await client.query('COMMIT');
+      
+      return { success: true, message: "User deleted successfully" };
+    } catch (err) {
+      await client.query('ROLLBACK');
+      console.error('Delete error:', err);
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
   
   static async getContentStatistics() {
     const client = await pool.connect();
