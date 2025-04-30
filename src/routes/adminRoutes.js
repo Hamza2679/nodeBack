@@ -112,6 +112,14 @@ router.put('/users/:id/role', AdminController.updateUserRole);
 router.put('/users/:id/details', AdminController.updateUserDetails);
 // router.delete('/users/:id', AdminController.softDeleteUser);
 router.delete('/users/:id', AdminController.deleteUser);
+// Delete post
+router.delete('/posts/:id', AdminController.deletePostAsAdmin);
+
+// Send notification
+router.post('/send-notification', AdminController.sendPushNotification);
+
+// Reset user password
+router.post('/users/:id/reset-password', AdminController.resetUserPassword);
 
 
 module.exports = router;

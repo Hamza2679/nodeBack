@@ -126,3 +126,82 @@ exports.softDeleteUser = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+exports.deletePostAsAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    if (!reason) {
+      return res.status(400).json({
+        success: false,
+        error: "Reason is required"
+      });
+    }
+
+    const result = await AdminService.deletePostAsAdmin(id, req.user.id, reason);
+
+    res.status(200).json({
+      success: true,
+      message: 'Post deleted successfully',
+      data: result
+    });
+
+  } catch (error) {
+    console.error('Delete Post Error:', error);
+
+    res.status(error.statusCode || 500).json({
+      success: false,
+      error: error.message || 'Failed to delete post',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+};
+
+exports.sendPushNotification = async (req, res) => {
+  try {
+    const { title, message, userIds, segments } = req.body;
+
+    const response = await AdminService.sendPushNotification({
+      title,
+      message,
+      userIds: userIds || [],
+      segments: segments || []
+    });
+
+    res.status(response.statusCode).json({
+      success: true,
+      message: 'Notification sent successfully',
+      data: response.body
+    });
+
+  } catch (error) {
+    console.error('Push Notification Error:', error);
+
+    res.status(error.statusCode || 500).json({
+      success: false,
+      error: error.message || 'Failed to send notification',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+};
+
+exports.resetUserPassword = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // TODO: Add actual password reset logic
+    res.status(200).json({
+      success: true,
+      message: 'Password reset initiated'
+    });
+
+  } catch (error) {
+    console.error('Password Reset Error:', error);
+
+    res.status(error.statusCode || 500).json({
+      success: false,
+      error: error.message || 'Failed to initiate password reset',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+};
