@@ -1,10 +1,10 @@
 const pool = require('../config/db');
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
-const { v4: uuidv4 } = require('uuid');
+
 const dotenv = require("dotenv");
 const emailService = require('./emailService');
-
+const { v4: uuidv4 } = require('uuid');
 const { uploadToS3 } = require('../services/uploadService'); // Import S3 upload function
 
 

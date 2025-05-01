@@ -138,7 +138,7 @@ exports.deletePostAsAdmin = async (req, res) => {
       });
     }
 
-    const result = await AdminService.deletePostAsAdmin(id, req.user.id, reason);
+    const result = await AdminService.deletePostAsAdmin(id, req.userId, reason);
 
     res.status(200).json({
       success: true,
