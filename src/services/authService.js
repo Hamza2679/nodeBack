@@ -1,7 +1,7 @@
 const pool = require('../config/db');
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
-
+const bcrypt = require('bcryptjs');
 const dotenv = require("dotenv");
 const emailService = require('./emailService');
 const { v4: uuidv4 } = require('uuid');
@@ -53,12 +53,17 @@ const result = await client.query(
 };
 
 
+
 exports.createUser = async (firstName, lastName, email, password) => {
     const client = await pool.connect();
     try {
+        // Generate salt and hash password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
         const result = await client.query(
             'INSERT INTO users (first_name, last_name, email, password, role) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-            [firstName, lastName, email, password, 'student']
+            [firstName, lastName, email, hashedPassword, 'student']
         );
         return new User(result.rows[0].id, firstName, lastName, email);
     } finally {
@@ -90,8 +95,7 @@ exports.deleteUser = async (id) => {
 
 
 exports.loginUser = async (identifier, password) => {
-    
-const SECRET_KEY = process.env.JWT_SECRET;
+    const SECRET_KEY = process.env.JWT_SECRET;
     const client = await pool.connect();
     try {
         const result = await client.query(
@@ -99,24 +103,40 @@ const SECRET_KEY = process.env.JWT_SECRET;
             [identifier]
         );
 
-        if (result.rows.length === 0 || password !== result.rows[0].password) {
+        if (result.rows.length === 0) {
             throw new Error('Invalid credentials');
         }
 
         const user = result.rows[0];
+        // Compare hashed password
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            throw new Error('Invalid credentials');
+        }
+
+        // Generate JWT token
         const token = jwt.sign(
-            { userId: user.id, email: user.email, role: user.role , universityId: user.universityid , profilePicture: user.profilepicture},
+            { userId: user.id, email: user.email, role: user.role, universityId: user.universityid, profilePicture: user.profilepicture },
             SECRET_KEY,
             { expiresIn: '90d' }
         );
-        
 
+        // Store token in user_token table
         await client.query(
             `INSERT INTO user_token (user_id, acc_token, expire_at) VALUES ($1, $2, NOW() + INTERVAL '1 hour')`,
             [user.id, token]
         );
 
-        return { id: user.id, firstName: user.first_name, lastName: user.last_name, email: user.email, role: user.role,universityId: user.universityid, profilePicture: user.profilepicture, token };
+        return { 
+            id: user.id, 
+            firstName: user.first_name, 
+            lastName: user.last_name, 
+            email: user.email, 
+            role: user.role,
+            universityId: user.universityid, 
+            profilePicture: user.profilepicture, 
+            token 
+        };
     } finally {
         client.release();
     }
@@ -190,20 +210,24 @@ exports.verifyOTP = async (email, otp) => {
 };
 
 exports.resetPassword = async (email, newPassword) => {
-  const client = await pool.connect();
-  try {
-    await client.query(
-      `UPDATE users SET password = $1 WHERE email = $2`,
-      [newPassword, email]
-    );
-    await client.query(
-      `DELETE FROM password_reset_otp WHERE email = $1`,
-      [email]
-    );
-    return { message: "Password reset successfully" };
-  } finally {
-    client.release();
-  }
+    const client = await pool.connect();
+    try {
+        // Hash the new password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+        await client.query(
+            `UPDATE users SET password = $1 WHERE email = $2`,
+            [hashedPassword, email]
+        );
+        await client.query(
+            `DELETE FROM password_reset_otp WHERE email = $1`,
+            [email]
+        );
+        return { message: "Password reset successfully" };
+    } finally {
+        client.release();
+    }
 };
 
 
