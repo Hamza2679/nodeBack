@@ -20,8 +20,6 @@ exports.createGroupPost = async (req, res) => {
 
         const newPost = await GroupPostService.create(group_id, user_id, text, imageUrl);
 
-       const io = getIO();
-io.to(`group_${group_id}`).emit("new_group_post", newPost);
         
 
 
@@ -40,9 +38,7 @@ exports.createReply = async (req, res) => {
 
         const reply = await GroupPostReplyService.create(groupPostId, userId, text, imageUrl);
         
-        // Emit socket event
-        const io = getIO();
-        io.to(`group_${reply.groupId}`).emit('new_reply', reply);
+    
         
         res.status(201).json(reply);
     } catch (error) {
@@ -103,7 +99,6 @@ exports.deleteGroupPost = async (req, res) => {
             return res.status(403).json({ error: "Unauthorized or post not found" });
         }
         
-io.to(`group_${post.group_id}`).emit("post_deleted", { postId: id });
         res.status(200).json({ message: "Group post deleted successfully" });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -134,7 +129,6 @@ exports.updateGroupPost = async (req, res) => {
 
         const updatedPost = await GroupPostService.update(postId, userId, text, imageUrl);
 
-io.to(`group_${updatedPost.group_id}`).emit("post_updated", updatedPost);
         res.status(200).json({ message: "Post updated successfully", post: updatedPost });
     } catch (error) {
         console.error("Error updating group post:", error.message);
