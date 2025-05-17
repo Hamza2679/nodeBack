@@ -231,7 +231,20 @@ if (checkResult.rows[0].created_by !== userId) {
         }
     }
     
-
+ static async isAdmin(groupId, userId) {
+        const client = await pool.connect();
+        console.log("Checking if user is admin for group:", groupId, "and user:", userId);
+        try {
+            const result = await client.query(
+                `SELECT * FROM groups WHERE id = $1 AND created_by = $2`,
+                [groupId, userId]
+            );
+            console.log("Admin check result:", result.rows);
+            return result.rows.length > 0;
+        } finally {
+            client.release();
+        }
+    }
     static async isUserMember(groupId, userId) {
         const client = await pool.connect();
         try {
@@ -285,6 +298,23 @@ static async removeMember(groupId, userIdToRemove, requesterId) {
         if (result.rowCount === 0) throw new Error("User not found in group");
     } catch (error) {
         throw new Error(error.message);
+    } finally {
+        client.release();
+    }
+}
+static async getGroupById(groupId) {
+    const client = await pool.connect();
+    try {
+        const result = await client.query(
+            `SELECT * FROM groups WHERE id = $1`,
+            [groupId]
+        );
+        if (result.rows.length === 0) {
+            throw new Error("Group not found");
+        }
+        return result.rows[0];
+    } catch (error) {
+        throw new Error("Error fetching group by id: " + error.message);
     } finally {
         client.release();
     }

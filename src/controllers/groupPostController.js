@@ -3,6 +3,7 @@ const GroupPostService = require("../services/groupPostService");
 const { uploadToS3 } = require("../services/uploadService");
 // Add to top of groupPostController.js
 const PostService = require("../services/postService");
+const GroupService = require("../services/groupService");
 exports.createGroupPost = async (req, res) => {
     try {
 
@@ -11,7 +12,6 @@ exports.createGroupPost = async (req, res) => {
         if (!group_id || !user_id) {
             return res.status(400).json({ error: "Group ID and User ID are required" });
         }
-
         let imageUrl = null;
 
         if (req.file) {
@@ -88,6 +88,8 @@ exports.getGroupPostById = async (req, res) => {
 exports.deleteGroupPost = async (req, res) => {
     try {
         const { id } = req.params;
+        console.log("Delete Post ID:", id);
+        console.log("Delete User ID:", req.user.userId);
         const userId = req.user?.userId; 
 
         if (!id) {
@@ -139,17 +141,21 @@ exports.updateGroupPost = async (req, res) => {
 exports.postToFeed = async (req, res) => {
     try {
         const { postId } = req.params;
+        console.log("Post ID:", postId);
         const userId = req.user.userId;
+        console.log("User ID:", userId);
 
         // Get the original group post
         const groupPost = await GroupPostService.getById(postId);
-        if (!groupPost) {
-            return res.status(404).json({ error: "Group post not found" });
-        }
+        console.log("Group Post:", groupPost);
+        // if (!groupPost) {
+        //     return res.status(404).json({ error: "Group post not found" });
+        // }
 
         // Verify requester is group owner
-        const group = await GroupService.getGroupById(groupPost.group_id);
-        if (!group || group.owner_id !== userId) {
+        const group = await GroupService.getGroupById(groupPost.groupId);
+        console.log("Group:", group);
+        if (!group || group.created_by !== userId) {
             return res.status(403).json({ error: "Only group owner can post to feed" });
         }
 
@@ -157,7 +163,7 @@ exports.postToFeed = async (req, res) => {
         const feedPost = await PostService.createPost(
             userId,
             groupPost.text,
-            groupPost.image_url,
+            groupPost.imageUrl,
             groupPost.id // Add group_post_id reference
         );
 

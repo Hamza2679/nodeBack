@@ -88,6 +88,7 @@ class GroupPostService {
     try {
         // Retrieve the post to get group_id and user_id
         const postResult = await client.query('SELECT * FROM group_posts WHERE id = $1', [id]);
+        console.log("Post Result:", postResult.rows);
         if (postResult.rows.length === 0) return false;
         const post = postResult.rows[0];
 
@@ -105,7 +106,7 @@ class GroupPostService {
         );
         if (memberResult.rows.length === 0) return false;
         const { role } = memberResult.rows[0];
-        if (['Admin', 'owner'].includes(role)) {
+        if (['admin', 'owner'].includes(role)) {
             await client.query('DELETE FROM group_posts WHERE id = $1', [id]);
             return true;
         }

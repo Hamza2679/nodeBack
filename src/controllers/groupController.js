@@ -207,3 +207,14 @@ exports.removeMember = async (req, res) => {
         res.status(statusCode).json({ error: error.message });
     }
 };
+exports.isAdmin = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.userId;
+
+        const isAdmin = await GroupService.isAdmin(id, userId);
+        res.status(200).json({ isAdmin });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};

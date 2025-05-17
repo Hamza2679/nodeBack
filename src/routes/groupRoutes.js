@@ -10,7 +10,8 @@ const {
     reportGroup,
     joinGroupUsAdmin,
     removeMember,
-    deleteGroup
+    deleteGroup,
+    isAdmin
 } = require("../controllers/groupController");
 const { authenticateToken } = require("../middleware/authMiddleware");
 
@@ -164,7 +165,7 @@ router.get('/:id/members', authenticateToken, getGroupMembers);
 router.delete("/delete/:groupId", authenticateToken, deleteGroup);
 router.post('/:groupId/joinUsAdmin', authenticateToken, joinGroupUsAdmin);
 
-
+router.get('/:id/admin', authenticateToken, isAdmin);
 
 
 /**
