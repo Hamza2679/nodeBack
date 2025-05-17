@@ -1,7 +1,6 @@
 const GroupPostService = require("../services/groupPostService");
-// const { getIo } = require("../utils/socket");
+const { getIO } = require("../utils/socket");
 const { uploadToS3 } = require("../services/uploadService");
-// Add to top of groupPostController.js
 const PostService = require("../services/postService");
 const GroupService = require("../services/groupService");
 exports.createGroupPost = async (req, res) => {
@@ -19,10 +18,19 @@ exports.createGroupPost = async (req, res) => {
         }
 
         const newPost = await GroupPostService.create(group_id, user_id, text, imageUrl);
-
-        
-
-
+         const io = getIO();
+        io.to(`group_${group_id}`).emit("new_group_post", {
+            action: "create",
+            post: {
+                ...newPost,
+                user: {
+                    firstName: req.user.firstName,
+                    lastName: req.user.lastName,
+                    profilePicture: req.user.profilePicture,
+                    role: req.user.role
+                }
+            }
+        });
         res.status(201).json({ message: "Post created successfully", post: newPost });
     } catch (error) {
         console.error("Create Group Post Error:", error.message);
@@ -30,16 +38,30 @@ exports.createGroupPost = async (req, res) => {
     }
 };
 
+
 exports.createReply = async (req, res) => {
     try {
-        const { groupPostId, text } = req.body;
+        const { postId } = req.params;
+        const { text } = req.body;
         const userId = req.user.userId;
-        const imageUrl =await uploadToS3(req.file.buffer, req.file.originalname, 'social-sync-for-final');
 
-        const reply = await GroupPostReplyService.create(groupPostId, userId, text, imageUrl);
-        
-    
-        
+        // Create reply in database
+        const reply = await GroupPostReplyService.create(postId, userId, text);
+
+        // Emit real-time update
+        const io = getIO();
+        io.to(`post_${postId}`).emit("new_reply", {
+            postId,
+            reply: {
+                ...reply,
+                user: {
+                    firstName: req.user.firstName,
+                    lastName: req.user.lastName,
+                    profilePicture: req.user.profilePicture
+                }
+            }
+        });
+
         res.status(201).json(reply);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -100,6 +122,13 @@ exports.deleteGroupPost = async (req, res) => {
         if (!deleted) {
             return res.status(403).json({ error: "Unauthorized or post not found" });
         }
+          if (deleted) {
+            const io = getIO();
+            io.to(`group_${deleted.group_id}`).emit("group_post_update", {
+                action: "delete",
+                postId: id
+            });
+        }
         
         res.status(200).json({ message: "Group post deleted successfully" });
     } catch (error) {
@@ -130,7 +159,11 @@ exports.updateGroupPost = async (req, res) => {
         }
 
         const updatedPost = await GroupPostService.update(postId, userId, text, imageUrl);
-
+         const io = getIO();
+        io.to(`group_${updatedPost.group_id}`).emit("group_post_update", {
+            action: "update",
+            post: updatedPost
+        });
         res.status(200).json({ message: "Post updated successfully", post: updatedPost });
     } catch (error) {
         console.error("Error updating group post:", error.message);

@@ -44,19 +44,20 @@ class GroupPostService {
             );
     
             return result.rows.map(row => ({
-                id: row.id,
-                groupId: row.group_id,
-                userId: row.user_id,
-                text: row.text,
-                imageUrl: row.image_url,
-                createdAt: row.created_at,
-                user: {
-                    firstName: row.first_name,
-                    lastName: row.last_name,
-                    profilePicture: row.profilepicture,
-                    role: row.role
-                }
-            }));
+        id: row.id,
+        groupId: row.group_id,
+        userId: row.user_id,
+        text: row.text,
+        imageUrl: row.image_url,
+        createdAt: row.created_at,
+        user: {
+            firstName: row.first_name,
+            lastName: row.last_name,
+            profilePicture: row.profilepicture,
+            role: row.role
+        }
+    }));
+
         } catch (error) {
             throw new Error("Error retrieving group posts: " + error.message);
         } finally {
@@ -88,7 +89,6 @@ class GroupPostService {
     try {
         // Retrieve the post to get group_id and user_id
         const postResult = await client.query('SELECT * FROM group_posts WHERE id = $1', [id]);
-        console.log("Post Result:", postResult.rows);
         if (postResult.rows.length === 0) return false;
         const post = postResult.rows[0];
 
@@ -97,7 +97,6 @@ class GroupPostService {
             await client.query('DELETE FROM group_posts WHERE id = $1', [id]);
             return true;
         }
-console.log('post.group_id', postResult.group_id);
         // Check if user is group admin/owner
         const memberResult = await client.query(
 
