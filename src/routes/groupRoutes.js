@@ -8,6 +8,7 @@ const {
     updateGroup ,
     getGroupMembers,
     reportGroup,
+    joinGroupUsAdmin,
     removeMember,
     deleteGroup
 } = require("../controllers/groupController");
@@ -161,6 +162,7 @@ router.delete('/:groupId/leave', authenticateToken, leaveGroup);
 
 router.get('/:id/members', authenticateToken, getGroupMembers);
 router.delete("/delete/:groupId", authenticateToken, deleteGroup);
+router.post('/:groupId/joinUsAdmin', authenticateToken, joinGroupUsAdmin);
 
 
 

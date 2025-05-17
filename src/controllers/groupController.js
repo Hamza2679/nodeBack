@@ -118,6 +118,27 @@ exports.joinGroup = async (req, res) => {
   
 };
 
+exports.joinGroupUsAdmin = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const userId = req.user.userId;
+
+    const isMember = await GroupService.isUserMember(groupId, userId);
+    if (isMember) {
+      return res.status(400).json({ error: 'You already joined this group.' });
+    }
+
+    const member = await GroupService.joinGroup(groupId, userId);
+    res.status(200).json({ message: 'Joined group successfully', member });
+  } 
+    catch (err) {
+       
+        res.status(500).json({ error: 'Failed to join group' });
+      }
+      
+  
+};
+
 exports.leaveGroup = async (req, res) => {
   try {
     const { groupId } = req.params;

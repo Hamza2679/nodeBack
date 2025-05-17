@@ -2,7 +2,7 @@
 const bcrypt = require('bcryptjs');
 const { Pool } = require('pg'); 
 const pool = new Pool({
-  connectionString: 'postgresql://neondb_owner:npg_s9V7lcznhdkj@ep-old-bread-a59ot1q4-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require', // Your database URL
+  connectionString: '', // Your database URL
   ssl: false // 👈 Explicitly disable SSL
 });
 

@@ -160,7 +160,6 @@ exports.sendOTP = async (email) => {
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
-        console.log("Generated OTP:", otp);
 
         await client.query(
             `INSERT INTO password_reset_otp (email, otp, expires_at) 
@@ -170,9 +169,7 @@ exports.sendOTP = async (email) => {
             [email, otp, otpExpiry]
         );
 
-        console.log("OTP stored in database:", otp);
         await emailService.sendEmail(email, otp);
-        console.log("OTP email sent successfully");
 
         return { message: "OTP sent to your email" };
     } catch (error) {
