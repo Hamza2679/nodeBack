@@ -97,12 +97,15 @@ class GroupPostService {
             await client.query('DELETE FROM group_posts WHERE id = $1', [id]);
             return true;
         }
-
+console.log('post.group_id', postResult.group_id);
         // Check if user is group admin/owner
         const memberResult = await client.query(
+
                 `SELECT * FROM groups WHERE id = $1 AND created_by = $2`,
-                [group_id, userId]
-        );
+                [post.group_id, userId]
+
+        ); 
+        console.log("Member Result:", memberResult.rows);
         if (memberResult.rows.length === 0) return false;
         
             await client.query('DELETE FROM group_posts WHERE id = $1', [id]);
