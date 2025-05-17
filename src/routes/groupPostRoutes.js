@@ -4,6 +4,8 @@ const {
     getGroupPosts, 
     updateGroupPost,
     getGroupPostById, 
+    createReply,
+    postToFeed,
     deleteGroupPost 
 } = require("../controllers/groupPostController");
 const { authenticateToken } = require("../middleware/authMiddleware");
@@ -210,5 +212,32 @@ router.delete("/:id", authenticateToken, deleteGroupPost);
  */
 router.put("/:id", authenticateToken, upload.single("image"), updateGroupPost);
 
-
+// In groupPostRoutes.js
+router.post("/:postId/reply", authenticateToken, upload.single("image"), createReply);
+/**
+ * @swagger
+ * /api/groupPosts/{postId}/post-to-feed:
+ *   post:
+ *     summary: Post a group message to main feed
+ *     description: Group owner can promote a group post to the main feed
+ *     tags: [Group Posts]
+ *     parameters:
+ *       - in: path
+ *         name: postId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       201:
+ *         description: Group post published to feed
+ *       403:
+ *         description: Not group owner
+ *       404:
+ *         description: Group post not found
+ */
+router.post(
+    "/:postId/post-to-feed",
+    authenticateToken,
+    postToFeed
+);
 module.exports = router;

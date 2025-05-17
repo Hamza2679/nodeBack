@@ -3,14 +3,17 @@ const Post = require('../models/post');
 
 class PostService {
    
-    static async createPost(userId, text, imageUrl) {
+    static async createPost(userId, text, imageUrl , groupPostId = null) {
         if (!userId) throw new Error("User ID is required");
         if (!text && !imageUrl) throw new Error("Post must contain either text or an image");
 
         const client = await pool.connect();
         try {
-            const query = `INSERT INTO posts (userid, text, image_url) VALUES ($1, $2, $3) RETURNING *`;
-            const values = [userId, text || null, imageUrl || null];
+             const query = `
+        INSERT INTO posts (userid, text, image_url, group_post_id) 
+        VALUES ($1, $2, $3, $4) RETURNING *
+    `;
+            const values = [userId, text || null, imageUrl || null,groupPostId];
 
             const result = await client.query(query, values);
             const row = result.rows[0];

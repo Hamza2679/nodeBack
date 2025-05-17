@@ -83,20 +83,38 @@ class GroupPostService {
         }
     }
 
-    static async delete(id, userId) {
-        const client = await pool.connect();
-        try {
-            const result = await client.query(
-                `DELETE FROM group_posts WHERE id = $1 AND user_id = $2 RETURNING *`,
-                [id, userId]
-            );
-            return result.rowCount > 0;
-        } catch (error) {
-            throw new Error("Error deleting group post: " + error.message);
-        } finally {
-            client.release();
+   static async delete(id, userId) {
+    const client = await pool.connect();
+    try {
+        // Retrieve the post to get group_id and user_id
+        const postResult = await client.query('SELECT * FROM group_posts WHERE id = $1', [id]);
+        if (postResult.rows.length === 0) return false;
+        const post = postResult.rows[0];
+
+        // Check if the user is the post creator
+        if (post.user_id === userId) {
+            await client.query('DELETE FROM group_posts WHERE id = $1', [id]);
+            return true;
         }
+
+        // Check if user is group admin/owner
+        const memberResult = await client.query(
+            `SELECT role FROM group_members 
+            WHERE group_id = $1 AND user_id = $2`,
+            [post.group_id, userId]
+        );
+        if (memberResult.rows.length === 0) return false;
+        const { role } = memberResult.rows[0];
+        if (['Admin', 'owner'].includes(role)) {
+            await client.query('DELETE FROM group_posts WHERE id = $1', [id]);
+            return true;
+        }
+
+        return false;
+    } finally {
+        client.release();
     }
+}
 
     static async update(postId, userId, newText, imageUrl) {
         const client = await pool.connect();

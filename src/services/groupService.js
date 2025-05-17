@@ -202,7 +202,7 @@ if (checkResult.rows[0].created_by !== userId) {
     
             const result = await client.query(
                 `INSERT INTO group_members (group_id, user_id, role, joined_at)
-                 VALUES ($1, $2, 'Admin', NOW()) RETURNING *`,
+                 VALUES ($1, $2, 'admin', NOW()) RETURNING *`,
                 [groupId, userId]
             );
             return result.rows[0];

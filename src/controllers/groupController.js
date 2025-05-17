@@ -128,7 +128,7 @@ exports.joinGroupUsAdmin = async (req, res) => {
       return res.status(400).json({ error: 'You already joined this group.' });
     }
 
-    const member = await GroupService.joinGroup(groupId, userId);
+    const member = await GroupService.joinGroupUSAdmin(groupId, userId);
     res.status(200).json({ message: 'Joined group successfully', member });
   } 
     catch (err) {
