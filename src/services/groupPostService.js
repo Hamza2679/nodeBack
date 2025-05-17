@@ -100,18 +100,14 @@ class GroupPostService {
 
         // Check if user is group admin/owner
         const memberResult = await client.query(
-            `SELECT role FROM group_members 
-            WHERE group_id = $1 AND user_id = $2`,
-            [post.group_id, userId]
+                `SELECT * FROM groups WHERE id = $1 AND created_by = $2`,
+                [group_id, userId]
         );
         if (memberResult.rows.length === 0) return false;
-        const { role } = memberResult.rows[0];
-        if (['admin', 'owner'].includes(role)) {
+        
             await client.query('DELETE FROM group_posts WHERE id = $1', [id]);
             return true;
-        }
-
-        return false;
+       
     } finally {
         client.release();
     }
