@@ -7,6 +7,8 @@ const {
     leaveGroup,
     updateGroup ,
     getGroupMembers,
+    reportGroup,
+    removeMember,
     deleteGroup
 } = require("../controllers/groupController");
 const { authenticateToken } = require("../middleware/authMiddleware");
@@ -186,5 +188,72 @@ router.delete("/delete/:groupId", authenticateToken, deleteGroup);
  *       401:
  *         description: Unauthorized
  */
+
+
+// Report a group
+/**
+ * @swagger
+ * /api/groups/{groupId}/report:
+ *   post:
+ *     summary: Report a group
+ *     tags: [Groups]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - reason
+ *             properties:
+ *               reason:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Group reported successfully
+ *       400:
+ *         description: Missing reason or invalid request
+ *       401:
+ *         description: Unauthorized
+ */
+router.post('/:groupId/report', authenticateToken, reportGroup);
+
+// Remove a member
+/**
+ * @swagger
+ * /api/groups/{groupId}/members/{userId}:
+ *   delete:
+ *     summary: Remove a member from the group (Owner only)
+ *     tags: [Groups]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Member removed successfully
+ *       403:
+ *         description: Unauthorized action
+ *       404:
+ *         description: Group or user not found
+ */
+router.delete('/:groupId/members/:userId', authenticateToken, removeMember);
 
 module.exports = router;

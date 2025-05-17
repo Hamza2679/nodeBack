@@ -220,7 +220,51 @@ if (checkResult.rows[0].created_by !== userId) {
             client.release();
         }
     }
-    
+    static async createReport(groupId, userId, reason) {
+    const client = await pool.connect();
+    try {
+        // Check if group exists
+        const groupCheck = await client.query('SELECT id FROM groups WHERE id = $1', [groupId]);
+        if (groupCheck.rowCount === 0) throw new Error("Group not found");
+
+        // Insert report
+        await client.query(
+            `INSERT INTO group_reports (group_id, user_id, reason, created_at)
+             VALUES ($1, $2, $3, NOW())`,
+            [groupId, userId, reason]
+        );
+    } catch (error) {
+        throw new Error("Error reporting group: " + error.message);
+    } finally {
+        client.release();
+    }
+}
+
+static async removeMember(groupId, userIdToRemove, requesterId) {
+    const client = await pool.connect();
+    try {
+        // Check requester is group owner
+        const group = await client.query('SELECT created_by FROM groups WHERE id = $1', [groupId]);
+        if (group.rowCount === 0) throw new Error("Group not found");
+        if (group.rows[0].created_by !== requesterId) throw new Error("Only group owner can remove members");
+
+        // Prevent owner removal
+        if (userIdToRemove === requesterId) throw new Error("Cannot remove yourself as owner");
+
+        // Remove member
+        const result = await client.query(
+            `DELETE FROM group_members 
+             WHERE group_id = $1 AND user_id = $2 
+             RETURNING *`,
+            [groupId, userIdToRemove]
+        );
+        if (result.rowCount === 0) throw new Error("User not found in group");
+    } catch (error) {
+        throw new Error(error.message);
+    } finally {
+        client.release();
+    }
+}
 
 }
 

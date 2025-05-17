@@ -158,3 +158,31 @@ exports.deleteGroup = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+exports.reportGroup = async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const { reason } = req.body;
+        const userId = req.user.userId;
+
+        if (!reason) return res.status(400).json({ error: "Reason is required" });
+
+        await GroupService.createReport(groupId, userId, reason);
+        res.status(201).json({ message: "Group reported successfully" });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+exports.removeMember = async (req, res) => {
+    try {
+        const { groupId, userId } = req.params;
+        const requesterId = req.user.userId;
+
+        await GroupService.removeMember(groupId, userId, requesterId);
+        res.status(200).json({ message: "Member removed successfully" });
+    } catch (error) {
+        const statusCode = error.message.includes("Unauthorized") ? 403 : 400;
+        res.status(statusCode).json({ error: error.message });
+    }
+};
