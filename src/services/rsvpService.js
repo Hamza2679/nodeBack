@@ -23,28 +23,108 @@ class RsvpService {
   }
 
   // Send push notification via OneSignal
-  static async sendNotification(event, rsvp) {
-    const { ONESIGNAL_APP_ID, ONESIGNAL_REST_API_KEY } = process.env;
+ static async sendNotification(event, rsvp) {
+    const appId   = process.env.ONESIGNAL_APP_ID;
+    const apiKey  = process.env.ONESIGNAL_REST_API_KEY;
 
-    const body = {
-      app_id: ONESIGNAL_APP_ID,
-      headings: { en: "New RSVP" },
-      contents: { en: `${rsvp.user_id} is ${rsvp.status} for ${event.name}` },
-      // you can target by tags or segments; here we notify everyone subscribed to this event
+    // Format the event time into a UTC ISO string
+    const sendAfter = new Date(event.datetime).toISOString();
+
+    const payload = {
+      app_id: appId,
+
+      // target only this user’s device(s):
       filters: [
-        { field: "tag", key: "event_id", relation: "=", value: `${event.id}` }
-      ]
+        { field: 'tag', key: 'user_id', relation: '=', value: rsvp.user_id.toString() }
+      ],
+
+      headings: { en: 'Reminder: Your event starts now!' },
+      contents: { en: `You marked yourself "${rsvp.status}" for "${event.name}".` },
+      send_after: sendAfter,               // ⏰ schedule for event time
+      data: {
+        eventId:    event.id,
+        rsvpStatus: rsvp.status,
+      }
     };
 
-    await fetch('https://onesignal.com/api/v1/notifications', {
-      method: 'POST',
-      headers: {
-        Authorization: `Basic ${ONESIGNAL_REST_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(body)
-    });
+    try {
+      const res = await axios.post(
+        'https://onesignal.com/api/v1/notifications',
+        payload,
+        {
+          headers: {
+            Authorization: `Basic ${apiKey}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      console.log('Scheduled OneSignal notification:', res.data.id);
+    } catch (err) {
+      console.error('OneSignal scheduling error:', err.response?.data || err.message);
+    }
   }
+
+
+   static async getByEvent(eventId) {
+    const client = await pool.connect();
+    try {
+      const { rows } = await client.query(
+        `SELECT * FROM rsvps WHERE event_id = $1 ORDER BY created_at DESC`,
+        [eventId]
+      );
+      return rows.map(r => new Rsvp(
+        r.id, r.event_id, r.user_id, r.status, r.created_at, r.notified_at
+      ));
+    } finally {
+      client.release();
+    }
+  }
+
+  static async getOne(userId, eventId) {
+    const client = await pool.connect();
+    try {
+      const { rows } = await client.query(
+        `SELECT * FROM rsvps WHERE event_id = $1 AND user_id = $2`,
+        [eventId, userId]
+      );
+      if (!rows.length) return null;
+      const r = rows[0];
+      return new Rsvp(r.id, r.event_id, r.user_id, r.status, r.created_at, r.notified_at);
+    } finally {
+      client.release();
+    }
+  }
+
+  static async update(userId, eventId, status) {
+    const client = await pool.connect();
+    try {
+      const { rows } = await client.query(
+        `UPDATE rsvps 
+         SET status = $1, created_at = NOW()
+         WHERE event_id = $2 AND user_id = $3
+         RETURNING *`,
+        [status, eventId, userId]
+      );
+      if (!rows.length) throw new Error('RSVP not found');
+      const r = rows[0];
+      return new Rsvp(r.id, r.event_id, r.user_id, r.status, r.created_at, r.notified_at);
+    } finally {
+      client.release();
+    }
+  }
+
+  static async remove(userId, eventId) {
+    const client = await pool.connect();
+    try {
+      await client.query(
+        `DELETE FROM rsvps WHERE event_id = $1 AND user_id = $2`,
+        [eventId, userId]
+      );
+    } finally {
+      client.release();
+    }
+  }
+
 }
 
 module.exports = RsvpService;
