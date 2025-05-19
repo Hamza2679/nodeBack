@@ -3,6 +3,8 @@ const router = express.Router();
 const eventController = require("../controllers/eventController");
 const { authenticateToken } = require("../middleware/authMiddleware");
 const multer = require("multer");
+const rsvpController = require('../controllers/rsvpController');
+
 
 // Configure multer to use memory storage
 const upload = multer({ storage: multer.memoryStorage() });
@@ -218,6 +220,12 @@ router.put(
     { name: "eventImages", maxCount: 4 }, // Up to 4 additional images
   ]),
   eventController.updateEvent
+);
+
+router.post(
+  '/:eventId/rsvp',
+  authenticateToken,
+  rsvpController.rsvp
 );
 
 module.exports = router;
