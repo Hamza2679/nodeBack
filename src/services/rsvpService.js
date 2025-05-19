@@ -1,10 +1,16 @@
-const pool = require('../config/db');
-const Rsvp = require('../models/rsvp');
-const fetch = require('node-fetch');
+// services/rsvpService.js
+
+const axios       = require('axios');
+const schedule    = require('node-schedule');
+const pool        = require('../config/db');
+const Rsvp        = require('../models/rsvp');
+const EventService = require('./eventService');
 
 class RsvpService {
+  /** Upsert RSVP and schedule a reminder */
   static async rsvpToEvent(userId, eventId, status) {
     const client = await pool.connect();
+    let rsvp;
     try {
       const upsertQuery = `
         INSERT INTO rsvps (event_id, user_id, status)
@@ -13,59 +19,85 @@ class RsvpService {
         DO UPDATE SET status = EXCLUDED.status, created_at = NOW()
         RETURNING *`;
       const res = await client.query(upsertQuery, [eventId, userId, status]);
-      return new Rsvp(
-        res.rows[0].id, eventId, userId,
-        res.rows[0].status, res.rows[0].notified_at, res.rows[0].created_at
+      const row = res.rows[0];
+      rsvp = new Rsvp(
+        row.id,
+        row.event_id,
+        row.user_id,
+        row.status,
+        row.created_at,
+        row.notified_at
       );
     } finally {
       client.release();
     }
+
+    // Fetch event details to get datetime & name
+    const event = await EventService.getEventById(eventId);
+    // Schedule the reminder
+    RsvpService.scheduleReminder(event, rsvp);
+
+    return rsvp;
   }
 
-  // Send push notification via OneSignal
- static async sendNotification(event, rsvp) {
-    const appId   = process.env.ONESIGNAL_APP_ID;
-    const apiKey  = process.env.ONESIGNAL_REST_API_KEY;
+  /** Schedule a node‑schedule job at the event time */
+  static scheduleReminder(event, rsvp) {
+    const runAt = new Date(event.datetime);
+    const now   = new Date();
 
-    // Format the event time into a UTC ISO string
-    const sendAfter = new Date(event.datetime).toISOString();
+    // If it's in the past or within 1 minute, bump it 1 minute ahead
+    if (runAt <= now || runAt - now < 60_000) {
+      runAt.setTime(now.getTime() + 60_000);
+    }
+
+    schedule.scheduleJob(runAt, async () => {
+      console.log(`⏰ Running reminder for RSVP ${rsvp.id} at ${new Date().toISOString()}`);
+      try {
+        await RsvpService.sendImmediateNotification(event, rsvp);
+        // Mark notified_at so you don't re-notify if you want to track it
+        await pool.query(
+          `UPDATE rsvps SET notified_at = NOW() WHERE id = $1`,
+          [rsvp.id]
+        );
+      } catch (err) {
+        console.error('Error sending reminder notification:', err);
+      }
+    });
+
+    console.log(`✅ Scheduled reminder for RSVP ${rsvp.id} at ${runAt.toISOString()}`);
+  }
+
+  /** Send a OneSignal push immediately to this user */
+  static async sendImmediateNotification(event, rsvp) {
+    const appId  = process.env.ONESIGNAL_APP_ID;
+    const apiKey = process.env.ONESIGNAL_REST_API_KEY;
 
     const payload = {
       app_id: appId,
-
-      // target only this user’s device(s):
       filters: [
         { field: 'tag', key: 'user_id', relation: '=', value: rsvp.user_id.toString() }
       ],
-
-      headings: { en: 'Reminder: Your event starts now!' },
-      contents: { en: `You marked yourself "${rsvp.status}" for "${event.name}".` },
-      send_after: sendAfter,               // ⏰ schedule for event time
-      data: {
-        eventId:    event.id,
-        rsvpStatus: rsvp.status,
-      }
+      headings: { en: 'Event Reminder' },
+      contents: { en: `Your event "${event.name}" starts now! You marked "${rsvp.status}".` },
+      data: { eventId: event.id }
     };
 
-    try {
-      const res = await axios.post(
-        'https://onesignal.com/api/v1/notifications',
-        payload,
-        {
-          headers: {
-            Authorization: `Basic ${apiKey}`,
-            'Content-Type': 'application/json'
-          }
+    const res = await axios.post(
+      'https://onesignal.com/api/v1/notifications',
+      payload,
+      {
+        headers: {
+          Authorization: `Basic ${apiKey}`,
+          'Content-Type': 'application/json'
         }
-      );
-      console.log('Scheduled OneSignal notification:', res.data.id);
-    } catch (err) {
-      console.error('OneSignal scheduling error:', err.response?.data || err.message);
-    }
+      }
+    );
+
+    console.log(`🔔 Sent reminder notification for RSVP ${rsvp.id}:`, res.data.id);
   }
 
-
-   static async getByEvent(eventId) {
+  /** List all RSVPs for an event */
+  static async getByEvent(eventId) {
     const client = await pool.connect();
     try {
       const { rows } = await client.query(
@@ -80,6 +112,7 @@ class RsvpService {
     }
   }
 
+  /** Get one user’s RSVP for an event */
   static async getOne(userId, eventId) {
     const client = await pool.connect();
     try {
@@ -95,11 +128,12 @@ class RsvpService {
     }
   }
 
+  /** Update an existing RSVP */
   static async update(userId, eventId, status) {
     const client = await pool.connect();
     try {
       const { rows } = await client.query(
-        `UPDATE rsvps 
+        `UPDATE rsvps
          SET status = $1, created_at = NOW()
          WHERE event_id = $2 AND user_id = $3
          RETURNING *`,
@@ -113,6 +147,7 @@ class RsvpService {
     }
   }
 
+  /** Remove (cancel) an RSVP */
   static async remove(userId, eventId) {
     const client = await pool.connect();
     try {
@@ -124,7 +159,6 @@ class RsvpService {
       client.release();
     }
   }
-
 }
 
 module.exports = RsvpService;

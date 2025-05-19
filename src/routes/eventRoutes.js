@@ -227,32 +227,24 @@ router.post(
   authenticateToken,
   rsvpController.rsvp
 );
-
 router.get(
   '/:eventId/rsvps',
   authenticateToken,
   rsvpController.listForEvent
 );
-
-// NEW: Get _this user’s_ RSVP for an event
 router.get(
   '/:eventId/rsvp',
   authenticateToken,
   rsvpController.getMyRsvp
 );
-
-// NEW: Update RSVP status
 router.put(
   '/:eventId/rsvp',
   authenticateToken,
   rsvpController.update
 );
-
-// NEW: Delete (cancel) RSVP
 router.delete(
   '/:eventId/rsvp',
   authenticateToken,
   rsvpController.remove
 );
-
 module.exports = router;
