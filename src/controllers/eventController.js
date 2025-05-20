@@ -96,38 +96,59 @@ exports.deleteEvent = async (req, res) => {
 };
 
 exports.updateEvent = async (req, res) => {
-    try {
-        const userId = req.user?.userId;
-        if (!userId) return res.status(401).json({ error: "Unauthorized" });
+  try {
+    const userId = req.user?.userId;
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-        const updates = {};
-        const { name, type, datetime, description } = req.body;
-
-        if (name) updates.name = name;
-        if (type) updates.type = type;
-        if (datetime) updates.datetime = new Date(datetime);
-        if (description) updates.description = description;
-
-        // Handle Cover Photo Update
-        if (req.files?.coverPhoto?.[0]) {
-            const coverFile = req.files.coverPhoto[0];
-            updates.cover_photo_url = await uploadToS3(coverFile.buffer, coverFile.originalname, 'your-bucket-name');
-        }
-
-        // Handle Additional Images Update
-        if (req.files?.eventImages) {
-            const newImages = [];
-            for (const file of req.files.eventImages) {
-                const url = await uploadToS3(file.buffer, file.originalname, 'your-bucket-name');
-                newImages.push(url);
-            }
-            updates.image_urls = newImages;
-        }
-
-        const updatedEvent = await EventService.updateEvent(userId, req.params.id, updates);
-        res.status(200).json({ message: "Event updated successfully", event: updatedEvent });
-    } catch (error) {
-        console.error("Update Event Error:", error);
-        res.status(500).json({ error: error.message });
+    // 1) Grab old URLs from the client
+    let existing = [];
+    if (req.body.existingImages) {
+      try {
+        existing = JSON.parse(req.body.existingImages);
+      } catch(_) {
+        return res.status(400).json({ error: "Invalid existingImages JSON" });
+      }
     }
+
+    // 2) Build updates object
+    const updates = {};
+    ['name', 'type', 'datetime', 'description'].forEach(f => {
+      if (req.body[f]) {
+        updates[f] = f === 'datetime'
+          ? new Date(req.body.datetime)
+          : req.body[f];
+      }
+    });
+
+    // 3) Cover photo
+    if (req.files?.coverPhoto?.[0]) {
+      const file = req.files.coverPhoto[0];
+      updates.cover_photo_url = await uploadToS3(
+        file.buffer, file.originalname, 'your-bucket-name'
+      );
+    }
+
+    // 4) New gallery images
+    let newImgs = [];
+    if (req.files?.eventImages) {
+      newImgs = await Promise.all(
+        req.files.eventImages.map(f =>
+          uploadToS3(f.buffer, f.originalname, 'your-bucket-name')
+        )
+      );
+    }
+
+    // 5) Merge old + new
+    updates.image_urls = [...existing, ...newImgs];
+
+    // 6) Persist
+    const updatedEvent = await EventService.updateEvent(
+      userId, req.params.id, updates
+    );
+    res.status(200).json({ message: "Event updated successfully", event: updatedEvent });
+
+  } catch (error) {
+    console.error("Update Event Error:", error);
+    res.status(500).json({ error: error.message });
+  }
 };
