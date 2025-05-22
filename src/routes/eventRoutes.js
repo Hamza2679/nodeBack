@@ -247,4 +247,12 @@ router.delete(
   authenticateToken,
   rsvpController.remove
 );
+
+// at the bottom, after your other RSVPs routes:
+router.get(
+  '/:eventId/attendees',
+  authenticateToken,
+  rsvpController.listAttendees
+);
+
 module.exports = router;

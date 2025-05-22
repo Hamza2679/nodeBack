@@ -147,6 +147,40 @@ class RsvpService {
     }
   }
 
+  /**
+   * Return an array of users who RSVP’d 'going' for this event.
+   * Assumes you have a `users` table with columns `id`, `name`, `profile_pic`.
+   */
+  /**
+   * Return an array of users who RSVP’d 'going' for this event.
+   * Uses the actual columns in your `users` table.
+   */
+  static async getAttendees(eventId) {
+    const client = await pool.connect();
+    try {
+      const { rows } = await client.query(
+        `SELECT
+           u.id                 AS "userId",
+           u.first_name         AS "firstName",
+           u.last_name          AS "lastName",
+           u.profilepicture     AS "profilePicture"
+         FROM rsvps r
+         JOIN users u
+           ON u.id = r.user_id
+         WHERE r.event_id = $1
+           AND r.status   = 'going'
+         ORDER BY r.created_at DESC`,
+        [eventId]
+      );
+      return rows;  // each row: { userId, firstName, lastName, profilePicture }
+    } finally {
+      client.release();
+    }
+  }
+
+
+
+
   /** Remove (cancel) an RSVP */
   static async remove(userId, eventId) {
     const client = await pool.connect();
@@ -160,5 +194,7 @@ class RsvpService {
     }
   }
 }
+
+
 
 module.exports = RsvpService;

@@ -1,5 +1,7 @@
 const EventService = require("../services/eventService");
 const { uploadToS3 } = require("../services/uploadService");
+require("dotenv").config();  // if dotenv isn't already loaded in your entrypoint
+
 
 exports.createEvent = async (req, res) => {
     try {
@@ -95,58 +97,81 @@ exports.deleteEvent = async (req, res) => {
     }
 };
 
+// controllers/eventController.js
+
+// controllers/eventController.js
+
+
 exports.updateEvent = async (req, res) => {
   try {
     const userId = req.user?.userId;
-    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    if (!userId) 
+      return res.status(401).json({ error: "Unauthorized" });
 
-    // 1) Grab old URLs from the client
+    // 1) Parse existing image URLs
     let existing = [];
     if (req.body.existingImages) {
       try {
         existing = JSON.parse(req.body.existingImages);
-      } catch(_) {
+      } catch {
         return res.status(400).json({ error: "Invalid existingImages JSON" });
       }
     }
 
-    // 2) Build updates object
+    // 2) Build updates payload
     const updates = {};
-    ['name', 'type', 'datetime', 'description'].forEach(f => {
-      if (req.body[f]) {
-        updates[f] = f === 'datetime'
+    ["name", "type", "datetime", "description"].forEach((field) => {
+      if (req.body[field]) {
+        updates[field] = field === "datetime"
           ? new Date(req.body.datetime)
-          : req.body[f];
+          : req.body[field];
       }
     });
 
-    // 3) Cover photo
+    // 3) Handle coverPhoto upload
     if (req.files?.coverPhoto?.[0]) {
       const file = req.files.coverPhoto[0];
+      console.log("Uploading coverPhoto:", {
+        name: file.originalname,
+        size: file.buffer?.length,
+      });
       updates.cover_photo_url = await uploadToS3(
-        file.buffer, file.originalname, 'your-bucket-name'
+        file.buffer,
+        file.originalname
       );
     }
 
-    // 4) New gallery images
+    // 4) Handle eventImages upload
     let newImgs = [];
     if (req.files?.eventImages) {
       newImgs = await Promise.all(
-        req.files.eventImages.map(f =>
-          uploadToS3(f.buffer, f.originalname, 'your-bucket-name')
-        )
+        req.files.eventImages.map((file) => {
+          console.log("Uploading eventImage:", {
+            name: file.originalname,
+            size: file.buffer?.length,
+          });
+          return uploadToS3(
+            file.buffer,
+            file.originalname
+          );
+        })
       );
     }
 
     // 5) Merge old + new
     updates.image_urls = [...existing, ...newImgs];
 
-    // 6) Persist
+    // 6) Persist and respond
     const updatedEvent = await EventService.updateEvent(
-      userId, req.params.id, updates
+      userId,
+      req.params.id,
+      updates
     );
-    res.status(200).json({ message: "Event updated successfully", event: updatedEvent });
 
+    res.status(200).json({
+      message: "Event updated successfully",
+      event:   updatedEvent,
+    });
   } catch (error) {
     console.error("Update Event Error:", error);
     res.status(500).json({ error: error.message });

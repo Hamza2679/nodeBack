@@ -26,6 +26,39 @@ exports.listForEvent = async (req, res) => {
   }
 };
 
+/**
+ * GET /:eventId/attendees
+ * Returns the number of people marked as 'going'
+ */
+/**
+ * GET /:eventId/attendees
+ * Returns count of 'going' RSVPs plus an array of those users
+ */
+exports.listAttendees = async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const raw = await RsvpService.getAttendees(eventId);
+
+    // map to merge first/last into name
+    const attendees = raw.map(u => ({
+      userId: u.userId,
+      name: `${u.firstName} ${u.lastName}`,
+      profilePicture: u.profilePicture
+    }));
+
+    res.json({
+      eventId,
+      going: attendees.length,
+      attendees
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+
 exports.getMyRsvp = async (req, res) => {
   try {
     const userId  = req.user.userId;
