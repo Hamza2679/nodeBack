@@ -254,5 +254,7 @@ router.get(
   authenticateToken,
   rsvpController.listAttendees
 );
+router.post('/', authenticateToken, eventController.createEvent);
+router.get('/:id/online-link', authenticateToken, eventController.getOnlineLink);
 
 module.exports = router;

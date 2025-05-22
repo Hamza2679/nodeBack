@@ -1,14 +1,22 @@
 const EventService = require("../services/eventService");
 const { uploadToS3 } = require("../services/uploadService");
-require("dotenv").config();  // if dotenv isn't already loaded in your entrypoint
-
+require("dotenv").config();
 
 exports.createEvent = async (req, res) => {
     try {
         const userId = req.user?.userId;
         if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-        const { name, type, datetime, description } = req.body;
+        const { 
+            name, 
+            type, 
+            datetime, 
+            description,
+            isOnline = false,
+            onlineLink = null,
+            onlineLinkVisible = false 
+        } = req.body;
+
         let coverPhotoUrl = null;
         const imageUrls = [];
 
@@ -31,6 +39,11 @@ exports.createEvent = async (req, res) => {
             return res.status(400).json({ error: "All required fields must be provided" });
         }
 
+        // Validate online event
+        if (isOnline && !onlineLink) {
+            return res.status(400).json({ error: "Online link is required for online events" });
+        }
+
         const newEvent = await EventService.createEvent(
             userId,
             name,
@@ -38,7 +51,10 @@ exports.createEvent = async (req, res) => {
             new Date(datetime),
             description,
             coverPhotoUrl,
-            imageUrls
+            imageUrls,
+            isOnline,
+            onlineLink,
+            onlineLinkVisible
         );
 
         res.status(201).json({ message: "Event created successfully", event: newEvent });
@@ -66,21 +82,22 @@ exports.getEventById = async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 };
+
 exports.getEventsByType = async (req, res) => {
     try {
-      const type = req.params.type;
-      const events = await EventService.getEventsByType(type);
-      
-      if (!events || events.length === 0) {
-        return res.status(404).json({ error: "No events found for this category" });
-      }
-      
-      res.status(200).json({ events });
+        const type = req.params.type;
+        const events = await EventService.getEventsByType(type);
+        
+        if (!events || events.length === 0) {
+            return res.status(404).json({ error: "No events found for this category" });
+        }
+        
+        res.status(200).json({ events });
     } catch (error) {
-      console.error("Get Events by Type Error:", error);
-      res.status(500).json({ error: "Internal Server Error" });
+        console.error("Get Events by Type Error:", error);
+        res.status(500).json({ error: "Internal Server Error" });
     }
-  };
+};
 
 exports.deleteEvent = async (req, res) => {
     try {
@@ -97,83 +114,100 @@ exports.deleteEvent = async (req, res) => {
     }
 };
 
-// controllers/eventController.js
-
-// controllers/eventController.js
-
-
 exports.updateEvent = async (req, res) => {
-  try {
-    const userId = req.user?.userId;
-    if (!userId) 
-      return res.status(401).json({ error: "Unauthorized" });
+    try {
+        const userId = req.user?.userId;
+        if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-    // 1) Parse existing image URLs
-    let existing = [];
-    if (req.body.existingImages) {
-      try {
-        existing = JSON.parse(req.body.existingImages);
-      } catch {
-        return res.status(400).json({ error: "Invalid existingImages JSON" });
-      }
+        // Parse existing image URLs
+        let existing = [];
+        if (req.body.existingImages) {
+            try {
+                existing = JSON.parse(req.body.existingImages);
+            } catch {
+                return res.status(400).json({ error: "Invalid existingImages JSON" });
+            }
+        }
+
+        // Build updates payload
+        const updates = {};
+        ["name", "type", "datetime", "description", "isOnline", "onlineLink", "onlineLinkVisible"].forEach((field) => {
+            if (req.body[field] !== undefined) {
+                updates[field] = field === "datetime" ? new Date(req.body.datetime) : req.body[field];
+            }
+        });
+
+        // Handle coverPhoto upload
+        if (req.files?.coverPhoto?.[0]) {
+            const file = req.files.coverPhoto[0];
+            updates.cover_photo_url = await uploadToS3(
+                file.buffer,
+                file.originalname,
+                'social-sync-for-final'
+            );
+        }
+
+        // Handle eventImages upload
+        let newImgs = [];
+        if (req.files?.eventImages) {
+            newImgs = await Promise.all(
+                req.files.eventImages.map((file) => 
+                    uploadToS3(file.buffer, file.originalname, 'social-sync-for-final')
+                )
+            );
+        }
+
+        // Merge old + new images
+        updates.image_urls = [...existing, ...newImgs];
+
+        // Persist and respond
+        const updatedEvent = await EventService.updateEvent(
+            userId,
+            req.params.id,
+            updates
+        );
+
+        res.status(200).json({
+            message: "Event updated successfully",
+            event: updatedEvent,
+        });
+    } catch (error) {
+        console.error("Update Event Error:", error);
+        res.status(500).json({ error: error.message });
     }
+};
 
-    // 2) Build updates payload
-    const updates = {};
-    ["name", "type", "datetime", "description"].forEach((field) => {
-      if (req.body[field]) {
-        updates[field] = field === "datetime"
-          ? new Date(req.body.datetime)
-          : req.body[field];
-      }
-    });
+exports.getOnlineLink = async (req, res) => {
+    try {
+        const userId = req.user?.userId;
+        if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-    // 3) Handle coverPhoto upload
-    if (req.files?.coverPhoto?.[0]) {
-      const file = req.files.coverPhoto[0];
-      console.log("Uploading coverPhoto:", {
-        name: file.originalname,
-        size: file.buffer?.length,
-      });
-      updates.cover_photo_url = await uploadToS3(
-        file.buffer,
-        file.originalname
-      );
+        const event = await EventService.getEventById(req.params.id);
+        if (!event) return res.status(404).json({ error: "Event not found" });
+
+        // Check if user is creator or admin
+        if (event.userId === userId) {
+            return res.status(200).json({ 
+                onlineLink: event.onlineLink,
+                isCreator: true
+            });
+        }
+
+        // For non-creators, check if they're attending and link is visible
+        const isAttending = await EventService.isUserAttending(userId, req.params.id);
+        if (!isAttending || !event.onlineLinkVisible) {
+            return res.status(403).json({ 
+                error: "You must be attending to view this link",
+                isCreator: false
+            });
+        }
+
+        res.status(200).json({ 
+            onlineLink: event.onlineLink,
+            isCreator: false
+        });
+    } catch (error) {
+        console.error("Get Online Link Error:", error);
+        res.status(500).json({ error: "Internal Server Error" });
     }
-
-    // 4) Handle eventImages upload
-    let newImgs = [];
-    if (req.files?.eventImages) {
-      newImgs = await Promise.all(
-        req.files.eventImages.map((file) => {
-          console.log("Uploading eventImage:", {
-            name: file.originalname,
-            size: file.buffer?.length,
-          });
-          return uploadToS3(
-            file.buffer,
-            file.originalname
-          );
-        })
-      );
-    }
-
-    // 5) Merge old + new
-    updates.image_urls = [...existing, ...newImgs];
-
-    // 6) Persist and respond
-    const updatedEvent = await EventService.updateEvent(
-      userId,
-      req.params.id,
-      updates
-    );
-
-    res.status(200).json({
-      message: "Event updated successfully",
-      event:   updatedEvent,
-    });
-  } catch (error) {
-    console.error("Update Event Error:", error);
-    res.status(500).json({ error: error.message });
-  }
 };

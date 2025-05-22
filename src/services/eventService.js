@@ -2,48 +2,68 @@ const pool = require('../config/db');
 const Event = require('../models/event');
 
 class EventService {
-  static async createEvent(userId, name, type, datetime, description, coverPhotoUrl, imageUrls) {
-    if (!userId) throw new Error("User ID is required");
-    if (!name || !type || !datetime || !description) {
-      throw new Error("All required fields must be provided");
-    }
-  
-    const client = await pool.connect();
-    try {
-      const query = `
-        INSERT INTO events 
-        (user_id, name, type, datetime, description, cover_photo_url, image_urls)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING *`;
-      const values = [
-        userId,
-        name,
-        type,
-        datetime,
-        description,
-        coverPhotoUrl,
+    static async createEvent(
+        userId, 
+        name, 
+        type, 
+        datetime, 
+        description, 
+        coverPhotoUrl, 
         imageUrls,
-      ];
-  
-      const result = await client.query(query, values);
-      const row = result.rows[0];
-  
-      return new Event(
-        row.id,
-        row.user_id,
-        row.name,
-        row.type,
-        row.datetime,
-        row.description,
-        row.cover_photo_url,
-        row.image_urls,
-        row.created_at,
-        row.updated_at
-      );
-    } finally {
-      client.release();
+        isOnline = false,
+        onlineLink = null,
+        onlineLinkVisible = false
+    ) {
+        if (!userId) throw new Error("User ID is required");
+        if (!name || !type || !datetime || !description) {
+            throw new Error("All required fields must be provided");
+        }
+        if (isOnline && !onlineLink) {
+            throw new Error("Online link is required for online events");
+        }
+
+        const client = await pool.connect();
+        try {
+            const query = `
+                INSERT INTO events 
+                (user_id, name, type, datetime, description, cover_photo_url, image_urls, is_online, online_link, online_link_visible)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                RETURNING *`;
+            const values = [
+                userId,
+                name,
+                type,
+                datetime,
+                description,
+                coverPhotoUrl,
+                imageUrls,
+                isOnline,
+                onlineLink,
+                onlineLinkVisible
+            ];
+
+            const result = await client.query(query, values);
+            const row = result.rows[0];
+
+            return new Event(
+                row.id,
+                row.user_id,
+                row.name,
+                row.type,
+                row.datetime,
+                row.description,
+                row.cover_photo_url,
+                row.image_urls,
+                row.is_online,
+                row.online_link,
+                row.online_link_visible,
+                row.created_at,
+                row.updated_at
+            );
+        } finally {
+            client.release();
+        }
     }
-  }
 
     static async getAllEvents() {
         const client = await pool.connect();
@@ -60,6 +80,9 @@ class EventService {
                 row.description,
                 row.cover_photo_url,
                 row.image_urls,
+                row.is_online,
+                row.online_link,
+                row.online_link_visible,
                 row.created_at,
                 row.updated_at
             ));
@@ -88,6 +111,9 @@ class EventService {
                 row.description,
                 row.cover_photo_url,
                 row.image_urls,
+                row.is_online,
+                row.online_link,
+                row.online_link_visible,
                 row.created_at,
                 row.updated_at
             );
@@ -95,27 +121,31 @@ class EventService {
             client.release();
         }
     }
+
     static async getEventsByType(eventType) {
-      const client = await pool.connect();
-      try {
-        const query = `SELECT * FROM events WHERE type = $1 ORDER BY datetime DESC`;
-        const result = await client.query(query, [eventType]);
-        
-        return result.rows.map(row => new Event(
-          row.id,
-          row.user_id,
-          row.name,
-          row.type,
-          row.datetime,
-          row.description,
-          row.cover_photo_url,
-          row.image_urls,
-          row.created_at,
-          row.updated_at
-        ));
-      } finally {
-        client.release();
-      }
+        const client = await pool.connect();
+        try {
+            const query = `SELECT * FROM events WHERE type = $1 ORDER BY datetime DESC`;
+            const result = await client.query(query, [eventType]);
+            
+            return result.rows.map(row => new Event(
+                row.id,
+                row.user_id,
+                row.name,
+                row.type,
+                row.datetime,
+                row.description,
+                row.cover_photo_url,
+                row.image_urls,
+                row.is_online,
+                row.online_link,
+                row.online_link_visible,
+                row.created_at,
+                row.updated_at
+            ));
+        } finally {
+            client.release();
+        }
     }
 
     static async deleteEvent(userId, eventId) {
@@ -164,18 +194,37 @@ class EventService {
                 RETURNING *`;
 
             const result = await client.query(query, values);
+            const row = result.rows[0];
+            
             return new Event(
-                result.rows[0].id,
-                result.rows[0].user_id,
-                result.rows[0].name,
-                result.rows[0].type,
-                result.rows[0].datetime,
-                result.rows[0].description,
-                result.rows[0].cover_photo_url,
-                result.rows[0].image_urls,
-                result.rows[0].created_at,
-                result.rows[0].updated_at
+                row.id,
+                row.user_id,
+                row.name,
+                row.type,
+                row.datetime,
+                row.description,
+                row.cover_photo_url,
+                row.image_urls,
+                row.is_online,
+                row.online_link,
+                row.online_link_visible,
+                row.created_at,
+                row.updated_at
             );
+        } finally {
+            client.release();
+        }
+    }
+
+    static async isUserAttending(userId, eventId) {
+        const client = await pool.connect();
+        try {
+            const query = `
+                SELECT 1 FROM rsvps 
+                WHERE user_id = $1 AND event_id = $2 AND status = 'going'
+                LIMIT 1`;
+            const result = await client.query(query, [userId, eventId]);
+            return result.rows.length > 0;
         } finally {
             client.release();
         }
