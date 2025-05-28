@@ -12,7 +12,9 @@ class Event {
     onlineLink,
     onlineLinkVisible,  // ← this slot
     createdAt,
-    updatedAt
+    updatedAt,
+        groupId  // Add groupId
+
   ) {
     this.id                = id;
     this.userId            = userId;
@@ -27,6 +29,8 @@ class Event {
     this.onlineLinkVisible = onlineLinkVisible;
     this.createdAt         = createdAt;
     this.updatedAt         = updatedAt;
+        this.groupId = groupId;
+
   }
 }
 
