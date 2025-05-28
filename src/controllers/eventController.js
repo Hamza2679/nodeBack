@@ -7,14 +7,15 @@ exports.createEvent = async (req, res) => {
         const userId = req.user?.userId;
         if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-        const { 
+       const { 
             name, 
             type, 
             datetime, 
             description,
             isOnline = false,
             onlineLink = null,
-            onlineLinkVisible = false 
+            onlineLinkVisible = false,
+            groupId    // Add groupId
         } = req.body;
 
         let coverPhotoUrl = null;
@@ -44,7 +45,7 @@ exports.createEvent = async (req, res) => {
             return res.status(400).json({ error: "Online link is required for online events" });
         }
 
-        const newEvent = await EventService.createEvent(
+      const newEvent = await EventService.createEvent(
             userId,
             name,
             type,
@@ -54,7 +55,8 @@ exports.createEvent = async (req, res) => {
             imageUrls,
             isOnline,
             onlineLink,
-            onlineLinkVisible
+            onlineLinkVisible,
+            groupId  // Pass groupId
         );
 
         res.status(201).json({ message: "Event created successfully", event: newEvent });
@@ -73,6 +75,16 @@ exports.getEvents = async (req, res) => {
     }
 };
 
+exports.getEventsByGroup = async (req, res) => {
+    try {
+        const groupId = req.params.groupId;
+        const events = await EventService.getEventsByGroup(groupId);
+        res.status(200).json({ events });
+    } catch (error) {
+        console.error("Get Events by Group Error:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+};
 exports.getEventById = async (req, res) => {
     try {
         const event = await EventService.getEventById(req.params.id);

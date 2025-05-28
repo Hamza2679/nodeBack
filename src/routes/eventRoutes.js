@@ -256,5 +256,7 @@ router.get(
 );
 router.post('/', authenticateToken, eventController.createEvent);
 router.get('/:id/online-link', authenticateToken, eventController.getOnlineLink);
+router.get('/group/:groupId', eventController.getEventsByGroup);
+
 
 module.exports = router;
