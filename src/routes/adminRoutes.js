@@ -186,7 +186,7 @@ router.post('/auth/signin', adminAuthController.signin);
  *       500:
  *         description: Internal server error
  */
-router.get('/users', authMiddleware, adminController.getUsers);
+router.get('/users', adminController.getUsers);
 
 /**
  * @swagger
@@ -224,7 +224,7 @@ router.get('/users', authMiddleware, adminController.getUsers);
  *       404:
  *         description: User not found
  */
-router.patch('/users/:id/status', authMiddleware, adminController.updateUserStatus);
+router.patch('/users/:id/status',  adminController.updateUserStatus);
 
 /**
  * @swagger
@@ -265,7 +265,7 @@ router.patch('/users/:id/status', authMiddleware, adminController.updateUserStat
  *       404:
  *         description: User not found
  */
-router.patch('/users/:id/role', authMiddleware, adminController.updateUserRole);
+router.patch('/users/:id/role',  adminController.updateUserRole);
 
 /**
  * @swagger
@@ -341,8 +341,8 @@ router.patch('/users/:id/role', authMiddleware, adminController.updateUserRole);
  *       500:
  *         description: Internal server error
  */
-router.put('/users/:id', authMiddleware, adminController.updateUserDetails);
-router.delete('/users/:id', authMiddleware, adminController.deleteUser);
+router.put('/users/:id',  adminController.updateUserDetails);
+router.delete('/users/:id',  adminController.deleteUser);
 
 /**
  * @swagger
@@ -370,7 +370,7 @@ router.delete('/users/:id', authMiddleware, adminController.deleteUser);
  *       401:
  *         description: Unauthorized access
  */
-router.get('/statistics/users', authMiddleware, adminController.getUserStatistics);
+router.get('/statistics/users',  adminController.getUserStatistics);
 
 /**
  * @swagger
@@ -400,7 +400,7 @@ router.get('/statistics/users', authMiddleware, adminController.getUserStatistic
  *       401:
  *         description: Unauthorized access
  */
-router.get('/statistics/content', authMiddleware, adminController.getContentStatistics);
+router.get('/statistics/content',  adminController.getContentStatistics);
 
 /**
  * @swagger
@@ -446,7 +446,7 @@ router.get('/statistics/content', authMiddleware, adminController.getContentStat
  *       401:
  *         description: Unauthorized access
  */
-router.get('/reports', authMiddleware, adminController.getReports);
+router.get('/reports',  adminController.getReports);
 
 /**
  * @swagger
@@ -488,7 +488,7 @@ router.get('/reports', authMiddleware, adminController.getReports);
  *       404:
  *         description: Report not found
  */
-router.post('/reports/:id/resolve', authMiddleware, adminController.resolveReport);
+router.post('/reports/:id/resolve', adminController.resolveReport);
 
 /**
  * @swagger
@@ -534,7 +534,7 @@ router.post('/reports/:id/resolve', authMiddleware, adminController.resolveRepor
  *       500:
  *         description: Notification failed
  */
-router.post('/notifications', authMiddleware, adminController.sendPushNotification);
+router.post('/notifications',  adminController.sendPushNotification);
 
 /**
  * @swagger
@@ -580,7 +580,7 @@ router.post('/notifications', authMiddleware, adminController.sendPushNotificati
  *       404:
  *         description: Post not found
  */
-router.delete('/posts/:id', authMiddleware, adminController.deletePostAsAdmin);
+router.delete('/posts/:id', adminController.deletePostAsAdmin);
 
 /**
  * @swagger
@@ -626,7 +626,7 @@ router.delete('/posts/:id', authMiddleware, adminController.deletePostAsAdmin);
  *       401:
  *         description: Unauthorized access
  */
-router.get('/moderation-logs', authMiddleware, adminController.getModerationLogs);
+router.get('/moderation-logs', adminController.getModerationLogs);
 
 module.exports = router;
 
