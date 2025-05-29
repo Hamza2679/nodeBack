@@ -3,6 +3,7 @@ const Admin = require('../models/admin');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const dotenv = require("dotenv");
+const bcrypt = require('bcryptjs');
 
 
         const SECRET_KEY = process.env.JWT_SECRET;
