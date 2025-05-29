@@ -125,6 +125,35 @@ class EventService {
             client.release();
         }
     }
+static async getAllEvents() {
+  const client = await pool.connect();
+  try {
+    const query = `
+      SELECT * 
+      FROM events 
+      ORDER BY datetime DESC
+    `;
+    const result = await client.query(query);
+    return result.rows.map(row => new Event(
+      row.id,
+      row.user_id,
+      row.name,
+      row.type,
+      row.datetime,
+      row.description,
+      row.cover_photo_url,
+      row.image_urls,
+      row.is_online,
+      row.online_link,
+      row.online_link_visible,
+      row.created_at,
+      row.updated_at,
+      row.group_id      // ← include this
+    ));
+  } finally {
+    client.release();
+  }
+}
 
     static async getEventsByType(eventType) {
         const client = await pool.connect();

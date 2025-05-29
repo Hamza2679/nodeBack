@@ -3,68 +3,92 @@ const { uploadToS3 } = require("../services/uploadService");
 require("dotenv").config();
 
 exports.createEvent = async (req, res) => {
-    try {
-        const userId = req.user?.userId;
-        if (!userId) return res.status(401).json({ error: "Unauthorized" });
-
-       const { 
-            name, 
-            type, 
-            datetime, 
-            description,
-            isOnline = false,
-            onlineLink = null,
-            onlineLinkVisible = false,
-            groupId    // Add groupId
-        } = req.body;
-
-        let coverPhotoUrl = null;
-        const imageUrls = [];
-
-        // Handle Cover Photo Upload
-        if (req.files?.coverPhoto?.[0]) {
-            const coverFile = req.files.coverPhoto[0];
-            coverPhotoUrl = await uploadToS3(coverFile.buffer, coverFile.originalname, 'social-sync-for-final');
-        }
-
-        // Handle Event Images Upload
-        if (req.files?.eventImages) {
-            for (const file of req.files.eventImages) {
-                const url = await uploadToS3(file.buffer, file.originalname, 'social-sync-for-final');
-                imageUrls.push(url);
-            }
-        }
-
-        // Validate required fields
-        if (!name || !type || !datetime || !description) {
-            return res.status(400).json({ error: "All required fields must be provided" });
-        }
-
-        // Validate online event
-        if (isOnline && !onlineLink) {
-            return res.status(400).json({ error: "Online link is required for online events" });
-        }
-
-      const newEvent = await EventService.createEvent(
-            userId,
-            name,
-            type,
-            new Date(datetime),
-            description,
-            coverPhotoUrl,
-            imageUrls,
-            isOnline,
-            onlineLink,
-            onlineLinkVisible,
-            groupId  // Pass groupId
-        );
-
-        res.status(201).json({ message: "Event created successfully", event: newEvent });
-    } catch (error) {
-        console.error("Create Event Error:", error);
-        res.status(500).json({ error: error.message });
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
     }
+
+    // Destructure raw values (all coming in as strings or undefined)
+    let {
+      name,
+      type,
+      datetime,
+      description,
+      isOnline: rawIsOnline,
+      onlineLink,
+      onlineLinkVisible: rawOnlineLinkVisible,
+      groupId
+    } = req.body;
+
+    // Coerce string -> boolean
+    const isOnline = (rawIsOnline === true || rawIsOnline === 'true');
+    const onlineLinkVisible = (rawOnlineLinkVisible === true || rawOnlineLinkVisible === 'true');
+
+    // Defaults
+    // (onlineLink stays null/undefined if not provided)
+    if (!onlineLink) {
+      onlineLink = null;
+    }
+
+    // Validate required fields
+    if (!name || !type || !datetime || !description) {
+      return res.status(400).json({ error: "All required fields must be provided" });
+    }
+
+    // Validate online event
+    if (isOnline && !onlineLink) {
+      return res.status(400).json({ error: "Online link is required for online events" });
+    }
+
+    // --- file uploads unchanged ---
+    let coverPhotoUrl = null;
+    const imageUrls = [];
+
+    if (req.files?.coverPhoto?.[0]) {
+      const coverFile = req.files.coverPhoto[0];
+      coverPhotoUrl = await uploadToS3(
+        coverFile.buffer,
+        coverFile.originalname,
+        'social-sync-for-final'
+      );
+    }
+
+    if (req.files?.eventImages) {
+      for (const file of req.files.eventImages) {
+        const url = await uploadToS3(
+          file.buffer,
+          file.originalname,
+          'social-sync-for-final'
+        );
+        imageUrls.push(url);
+      }
+    }
+
+    // Call the service with real booleans
+    const newEvent = await EventService.createEvent(
+      userId,
+      name,
+      type,
+      new Date(datetime),
+      description,
+      coverPhotoUrl,
+      imageUrls,
+      isOnline,
+      onlineLink,
+      onlineLinkVisible,
+      groupId || null
+    );
+
+    return res
+      .status(201)
+      .json({ message: "Event created successfully", event: newEvent });
+  } catch (error) {
+    console.error("Create Event Error:", error);
+    return res.status(500).json({ error: error.message });
+  }
 };
+
 
 exports.getEvents = async (req, res) => {
     try {

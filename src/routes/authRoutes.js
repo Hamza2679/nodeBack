@@ -2,27 +2,24 @@ const express = require("express");
 const authController = require("../controllers/authController");
 const router = express.Router();
 const { authenticateToken } = require("../middleware/authMiddleware");
-
-const { deleteUser } = require("../controllers/postController");
-
 const upload = require('../middleware/upload');
-
 
 /**
  * @swagger
  * tags:
- *   name: Authentication
- *   description: User authentication APIs
+ *   - name: Authentication
+ *     description: User authentication APIs
+ *   - name: Users
+ *     description: User management APIs
  */
 
 /**
  * @swagger
  * /api/auth/signup:
  *   post:
- *     summary: Register a new user
- *     description: Creates a new user in the database.
- *     tags:
- *       - Authentication
+ *     summary: Register a new user (Legacy)
+ *     description: Creates a new user in the database (without university verification)
+ *     tags: [Authentication]
  *     requestBody:
  *       required: true
  *       content:
@@ -64,9 +61,8 @@ router.post("/signup", authController.signup);
  * /api/auth/signin:
  *   post:
  *     summary: Authenticate user
- *     description: Logs in an existing user and returns user details.
- *     tags:
- *       - Authentication
+ *     description: Logs in an existing user and returns user details
+ *     tags: [Authentication]
  *     requestBody:
  *       required: true
  *       content:
@@ -88,6 +84,27 @@ router.post("/signup", authController.signup);
  *     responses:
  *       200:
  *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                 firstName:
+ *                   type: string
+ *                 lastName:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 role:
+ *                   type: string
+ *                 universityId:
+ *                   type: string
+ *                 profilePicture:
+ *                   type: string
+ *                 token:
+ *                   type: string
  *       400:
  *         description: Email and password required
  *       401:
@@ -100,9 +117,8 @@ router.post("/signin", authController.signin);
  * /api/auth/logout:
  *   post:
  *     summary: Logout user
- *     description: Logs out a user by deleting their access token from the database.
- *     tags:
- *       - Authentication
+ *     description: Logs out a user by deleting their access token
+ *     tags: [Authentication]
  *     requestBody:
  *       required: true
  *       content:
@@ -114,8 +130,8 @@ router.post("/signin", authController.signin);
  *               - token
  *             properties:
  *               userId:
- *                 type: string
- *                 example: "12345"
+ *                 type: integer
+ *                 example: 12345
  *               token:
  *                 type: string
  *                 example: "your_jwt_token_here"
@@ -134,8 +150,7 @@ router.post("/logout", authController.logout);
  * /api/auth/send-otp:
  *   post:
  *     summary: Send OTP for password reset
- *     tags:
- *       - Authentication
+ *     tags: [Authentication]
  *     requestBody:
  *       required: true
  *       content:
@@ -161,9 +176,8 @@ router.post("/send-otp", authController.sendOTP);
  * @swagger
  * /api/auth/verify-otp:
  *   post:
- *     summary: Verify OTP and reset password
- *     tags:
- *       - Authentication
+ *     summary: Verify OTP for password reset
+ *     tags: [Authentication]
  *     requestBody:
  *       required: true
  *       content:
@@ -173,7 +187,6 @@ router.post("/send-otp", authController.sendOTP);
  *             required:
  *               - email
  *               - otp
- *               - newPassword
  *             properties:
  *               email:
  *                 type: string
@@ -182,6 +195,36 @@ router.post("/send-otp", authController.sendOTP);
  *               otp:
  *                 type: string
  *                 example: "123456"
+ *     responses:
+ *       200:
+ *         description: OTP verified successfully
+ *       400:
+ *         description: Invalid or expired OTP
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/verify-otp', authController.verifyOTP);
+
+/**
+ * @swagger
+ * /api/auth/reset-password:
+ *   post:
+ *     summary: Reset user password
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - newPassword
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: john@example.com
  *               newPassword:
  *                 type: string
  *                 format: password
@@ -190,31 +233,28 @@ router.post("/send-otp", authController.sendOTP);
  *       200:
  *         description: Password reset successful
  *       400:
- *         description: Invalid or expired OTP
+ *         description: Email and new password required
  *       500:
  *         description: Internal server error
  */
-router.post('/verify-otp', authController.verifyOTP);
 router.post('/reset-password', authController.resetPassword);
 
 /**
  * @swagger
- * tags:
- *   name: Users
- *   description: User management APIs
- */
-
-/**
- * @swagger
- * /users:
+ * /api/auth/users:
  *   get:
  *     summary: Get all users
- *     description: Fetches a list of all registered users.
- *     tags:
- *       - Users
+ *     description: Fetches a list of all registered users
+ *     tags: [Users]
  *     responses:
  *       200:
  *         description: List of users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/User'
  *       500:
  *         description: Internal Server Error
  */
@@ -222,22 +262,25 @@ router.get("/users", authController.getAllUsers);
 
 /**
  * @swagger
- * /api/users/{id}:
+ * /api/auth/users/{id}:
  *   get:
  *     summary: Get a user by ID
- *     description: Fetches a single user by their unique ID.
- *     tags:
- *       - Users
+ *     description: Fetches a single user by their unique ID
+ *     tags: [Users]
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
- *           type: string
+ *           type: integer
  *         description: The ID of the user
  *     responses:
  *       200:
  *         description: User details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/User'
  *       404:
  *         description: User not found
  *       500:
@@ -245,23 +288,13 @@ router.get("/users", authController.getAllUsers);
  */
 router.get("/users/:id", authController.getUserById);
 
-
-
-/**
- * @swagger
- * tags:
- *   name: Users
- *   description: User management APIs
- */
-
 /**
  * @swagger
  * /api/auth/users/{id}:
  *   delete:
  *     summary: Delete a user by ID
- *     description: Deletes a user from the system by their unique ID.
- *     tags:
- *       - Users
+ *     description: Deletes a user from the system by their unique ID
+ *     tags: [Users]
  *     parameters:
  *       - in: path
  *         name: id
@@ -281,49 +314,254 @@ router.delete("/users/:id", authController.deleteUser);
 
 /**
  * @swagger
- * /api/edit-profile:
- *   put:
- *     summary: Edit user profile
- *     description: Allows users to update their profile information, including changing their profile picture.
- *     tags:
- *       - Authentication
- *     security:
- *       - BearerAuth: []
+ * /api/auth/signup/initiate:
+ *   post:
+ *     summary: Initiate university-verified signup
+ *     description: Starts the signup process by verifying university ID and sending OTP
+ *     tags: [Authentication]
  *     requestBody:
  *       required: true
  *       content:
- *         multipart/form-data:  # Use multipart/form-data to support file uploads
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - universityId
+ *             properties:
+ *               universityId:
+ *                 type: string
+ *                 example: "U12345678"
+ *     responses:
+ *       200:
+ *         description: OTP sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 firstName:
+ *                   type: string
+ *                 lastName:
+ *                   type: string
+ *       400:
+ *         description: Invalid university ID or user already registered
+ *       500:
+ *         description: Internal server error
+ */
+router.post("/signup/initiate", authController.initiateSignup);
+
+/**
+ * @swagger
+ * /api/auth/signup/verify-otp:
+ *   post:
+ *     summary: Verify OTP for university signup
+ *     description: Verifies the OTP sent to student's university email
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - universityId
+ *               - otp
+ *             properties:
+ *               universityId:
+ *                 type: string
+ *                 example: "U12345678"
+ *               otp:
+ *                 type: string
+ *                 example: "123456"
+ *     responses:
+ *       200:
+ *         description: OTP verified successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 email:
+ *                   type: string
+ *       400:
+ *         description: Invalid or expired OTP
+ *       500:
+ *         description: Internal server error
+ */
+router.post("/signup/verify-otp", authController.verifySignupOTP);
+
+/**
+ * @swagger
+ * /api/auth/signup/complete:
+ *   post:
+ *     summary: Complete university-verified signup
+ *     description: Creates a new user after university verification
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - universityId
+ *               - password
+ *               - firstName
+ *               - lastName
+ *               - email
+ *             properties:
+ *               universityId:
+ *                 type: string
+ *                 example: "U12345678"
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 example: "securepassword"
+ *               firstName:
+ *                 type: string
+ *                 example: "John"
+ *               lastName:
+ *                 type: string
+ *                 example: "Doe"
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: "john.doe@university.edu"
+ *     responses:
+ *       200:
+ *         description: User created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                 firstName:
+ *                   type: string
+ *                 lastName:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 role:
+ *                   type: string
+ *                 universityId:
+ *                   type: string
+ *                 token:
+ *                   type: string
+ *       400:
+ *         description: Invalid input or error in user creation
+ *       500:
+ *         description: Internal server error
+ */
+router.post("/signup/complete", authController.completeSignup);
+
+/**
+ * @swagger
+ * /api/auth/edit-profile:
+ *   put:
+ *     summary: Edit user profile
+ *     description: Update user information including profile picture
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             properties:
- *               username:
+ *               firstName:
  *                 type: string
- *                 example: "new_username"
- *                 description: "Updated username (optional)"
- *               bio:
+ *                 example: "John"
+ *                 description: Updated first name
+ *               lastName:
  *                 type: string
- *                 example: "This is my new bio"
- *                 description: "Updated user bio (optional)"
+ *                 example: "Doe"
+ *                 description: Updated last name
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: "john.doe@example.com"
+ *                 description: Updated email address
+ *               universityId:
+ *                 type: string
+ *                 example: "U12345678"
+ *                 description: Updated university ID
  *               profilePicture:
  *                 type: string
- *                 format: binary  # Ensures the profile picture is treated as a file upload
- *                 description: "New profile picture (optional, must be uploaded as a file)"
+ *                 format: binary
+ *                 description: New profile picture (JPEG/PNG)
  *     responses:
  *       200:
  *         description: Profile updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
  *       400:
- *         description: Bad request (e.g., invalid input data)
+ *         description: Bad request (invalid input data)
  *       401:
  *         description: Unauthorized
  *       500:
  *         description: Server error
  */
-
 router.put('/edit-profile', authenticateToken, upload.single('profilePicture'), authController.editProfile);
-router.post("/signup/initiate", authController.initiateSignup);
-router.post("/signup/verify-otp", authController.verifySignupOTP);
-router.post("/signup/complete", authController.completeSignup);
-
-
 
 module.exports = router;
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     User:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: Unique identifier for the user
+ *         firstName:
+ *           type: string
+ *           description: User's first name
+ *         lastName:
+ *           type: string
+ *           description: User's last name
+ *         email:
+ *           type: string
+ *           format: email
+ *           description: User's email address
+ *         role:
+ *           type: string
+ *           enum: [Admin, Teacher, Student]
+ *           description: User's role in the system
+ *         universityId:
+ *           type: string
+ *           description: University-assigned ID
+ *         profilePicture:
+ *           type: string
+ *           description: URL to user's profile picture
+ *         lastLogin:
+ *           type: string
+ *           format: date-time
+ *           description: Last login timestamp
+ *         isActive:
+ *           type: boolean
+ *           description: Account activation status
+ *   securitySchemes:
+ *     bearerAuth:
+ *       type: http
+ *       scheme: bearer
+ *       bearerFormat: JWT
+ */
