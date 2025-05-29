@@ -1,6 +1,7 @@
 const express = require("express");
 const adminAuthController = require("../controllers/adminauthController");
 const AdminController = require('../controllers/adminController');
+const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
@@ -105,8 +106,12 @@ router.post("/signin", adminAuthController.signin);
 
 router.get('/dashboard/stats', AdminController.getDashboardStats);
 router.get('/reports', AdminController.getReports);
-router.post('/reports/:id/resolve', AdminController.resolveReport);
-router.get('/users', AdminController.getUsers);
+router.post(
+  '/reports/:id/resolve',
+  authenticateToken,
+  authorizeRoles(['admin']),
+  AdminController.resolveReport
+);router.get('/users', AdminController.getUsers);
 router.put('/users/:id/status', AdminController.updateUserStatus);
 router.put('/users/:id/role', AdminController.updateUserRole);
 router.put('/users/:id/details', AdminController.updateUserDetails);
