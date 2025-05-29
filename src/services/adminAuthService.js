@@ -16,7 +16,7 @@ exports.createAdmin = async (firstName, lastName, email, password, universityId,
         const hashedPassword = await bcrypt.hash(password, salt);
 
         const result = await client.query(
-            'INSERT INTO users (first_name, last_name, email, password, university_id, role) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            'INSERT INTO users (first_name, last_name, email, password, universityid, role) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
             [firstName, lastName, email, hashedPassword, universityId, role]
         );
 
@@ -31,7 +31,7 @@ exports.loginAdmin = async (identifier, password) => {
     const client = await pool.connect();
     try {
         const result = await client.query(
-            `SELECT * FROM users WHERE email = $1 OR university_id = $1`,
+            `SELECT * FROM users WHERE email = $1 OR universityid = $1`,
             [identifier]
         );
 
