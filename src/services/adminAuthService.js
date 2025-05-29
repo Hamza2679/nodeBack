@@ -2,25 +2,36 @@ const pool = require('../config/db');
 const Admin = require('../models/admin');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
-const SECRET_KEY = "your_secret_key";
+const dotenv = require("dotenv");
+const bcrypt = require('bcryptjs');
+
+
+        const SECRET_KEY = process.env.JWT_SECRET;
 
 exports.createAdmin = async (firstName, lastName, email, password, universityId, role) => {
     const client = await pool.connect();
     try {
+        // Hash the password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
         const result = await client.query(
             'INSERT INTO users (first_name, last_name, email, password, universityid, role) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-            [firstName, lastName, email, password, universityId, role]
+            [firstName, lastName, email, hashedPassword, universityId, role]
         );
-        return new Admin(result.rows[0].id, firstName, lastName, email, password, universityId, role);
+
+        return new Admin(result.rows[0].id, firstName, lastName, email, universityId, role);
     } finally {
         client.release();
     }
 };
+
+
 exports.loginAdmin = async (identifier, password) => {
     const client = await pool.connect();
     try {
-        const result = await pool.query(
-            `SELECT * FROM users WHERE email = $1 OR university_id = $1`, 
+        const result = await client.query(
+            `SELECT * FROM users WHERE email = $1 OR universityid = $1`,
             [identifier]
         );
 
@@ -30,7 +41,9 @@ exports.loginAdmin = async (identifier, password) => {
 
         const admin = result.rows[0];
 
-        if (password !== admin.password) {
+        // Compare password using bcryptjs
+        const isMatch = await bcrypt.compare(password, admin.password);
+        if (!isMatch) {
             throw new Error("Invalid credentials");
         }
 
