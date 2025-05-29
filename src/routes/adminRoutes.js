@@ -1,8 +1,8 @@
-const express = require('express');
+const express = require("express");
+const adminAuthController = require("../controllers/adminauthController");
+const AdminController = require('../controllers/adminController');
+
 const router = express.Router();
-const adminAuthController = require('../controllers/adminAuthController');
-const adminController = require('../controllers/adminController');
-const authMiddleware = require('../middleware/authMiddleware');
 
 /**
  * @swagger
