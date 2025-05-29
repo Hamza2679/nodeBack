@@ -12,19 +12,17 @@ const groupPostRoutes = require("./routes/groupPostRoutes");
 const eventRoutes = require("./routes/eventRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const followRoutes = require("./routes/followRoutes");
+const studentRoutes = require("./routes/studentRoutes"); 
 
 const db = require("./config/db");
 const swaggerDocs = require("../swagger");
 
-// Import your socket init function
 const { initSocket } = require("./utils/messageSocket");
 
 dotenv.config();
 const app = express();
-const server = http.createServer(app); // Wrap Express with HTTP server
-
-// Initialize socket with the server
-initSocket(server); // 👈 this initializes all your socket stuff
+const server = http.createServer(app); 
+initSocket(server); 
 
 const allowedOrigins = ["http://127.0.0.1:5500", "http://localhost:2919"];
 app.use(cors({
@@ -33,7 +31,6 @@ app.use(cors({
   credentials: true,
 }));
 
-// 📦 Middlewares & Routes
 app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/api/auth", authRoutes);
@@ -44,10 +41,9 @@ app.use("/api/groupPosts", groupPostRoutes);
 app.use("/api/events", eventRoutes);
 app.use("/api/followRo", followRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/students", studentRoutes);
 
-// Swagger documentation
 swaggerDocs(app);
 
-// 🚀 Launch server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

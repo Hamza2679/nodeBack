@@ -1,4 +1,39 @@
 const authService = require('../services/authService');
+exports.initiateSignup = async (req, res) => {
+    try {
+        const { universityId } = req.body;
+        const response = await authService.initiateSignup(universityId);
+        res.status(200).json(response);
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+};
+
+exports.verifySignupOTP = async (req, res) => {
+    try {
+        const { universityId, otp } = req.body;
+        const result = await authService.verifySignupOTP(universityId, otp);
+        res.status(200).json(result);
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+};
+
+exports.completeSignup = async (req, res) => {
+    try {
+        const { universityId, password, firstName, lastName, email } = req.body;
+        const result = await authService.completeSignup(
+            universityId, 
+            password, 
+            firstName, 
+            lastName, 
+            email
+        );
+        res.status(200).json(result);
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+};
 
 exports.signup = async (req, res) => {
     const { firstName, lastName, email, password } = req.body;

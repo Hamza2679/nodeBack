@@ -320,7 +320,9 @@ router.delete("/users/:id", authController.deleteUser);
  */
 
 router.put('/edit-profile', authenticateToken, upload.single('profilePicture'), authController.editProfile);
-
+router.post("/signup/initiate", authController.initiateSignup);
+router.post("/signup/verify-otp", authController.verifySignupOTP);
+router.post("/signup/complete", authController.completeSignup);
 
 
 

@@ -6,7 +6,140 @@
     const emailService = require('./emailService');
     const { v4: uuidv4 } = require('uuid');
     const { uploadToS3 } = require('../services/uploadService'); // Import S3 upload function
+const StudentService = require('./studentService');
+const signupEmailService = require('./signupEmailService');
 
+exports.initiateSignup = async (universityId) => {
+    const client = await pool.connect();
+    try {
+        // Check if user already exists
+        const userExists = await client.query(
+            'SELECT * FROM users WHERE universityid = $1',
+            [universityId]
+        );
+        if (userExists.rows.length > 0) {
+            throw new Error('User already registered');
+        }
+
+        // Check student list
+        const student = await StudentService.getStudentByUniversityId(universityId);
+        if (!student) {
+            throw new Error('Invalid university ID');
+        }
+
+        // Generate and store OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+        await client.query(
+            `INSERT INTO signup_otp (university_id, otp, email, expires_at)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (university_id)
+             DO UPDATE SET otp = $2, expires_at = $4`,
+            [universityId, otp, student.email, otpExpiry]
+        );
+
+        // Send OTP email
+       await signupEmailService.sendSignupOTP(
+            student.email, 
+            otp,
+            student.firstName,
+            student.lastName
+        );
+
+        return { 
+            message: "OTP sent successfully",
+            email: student.email,
+            firstName: student.firstName,
+            lastName: student.lastName
+        };
+    } finally {
+        client.release();
+    }
+};
+
+exports.verifySignupOTP = async (universityId, otp) => {
+    const client = await pool.connect();
+    try {
+        const result = await client.query(
+            `SELECT * FROM signup_otp 
+             WHERE university_id = $1 AND otp = $2`,
+            [universityId, otp]
+        );
+
+        if (result.rows.length === 0) {
+            throw new Error('Invalid OTP');
+        }
+
+        const record = result.rows[0];
+        if (new Date(record.expires_at) < new Date()) {
+            throw new Error('OTP expired');
+        }
+
+        return { 
+            success: true,
+            email: record.email 
+        };
+    } finally {
+        client.release();
+    }
+};
+
+exports.completeSignup = async (universityId, password, firstName, lastName, email) => {
+    const client = await pool.connect();
+    try {
+        // Hash password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+        // Create user
+        const userResult = await client.query(
+            `INSERT INTO users 
+             (first_name, last_name, email, password, role, universityid) 
+             VALUES ($1, $2, $3, $4, $5, $6) 
+             RETURNING *`,
+            [firstName, lastName, email, hashedPassword, 'student', universityId]
+        );
+
+        // Delete OTP record
+        await client.query(
+            `DELETE FROM signup_otp WHERE university_id = $1`,
+            [universityId]
+        );
+
+        // Generate token
+        const SECRET_KEY = process.env.JWT_SECRET;
+        const user = userResult.rows[0];
+        const token = jwt.sign(
+            { 
+                userId: user.id, 
+                email: user.email, 
+                role: user.role, 
+                universityId: user.universityid 
+            },
+            SECRET_KEY,
+            { expiresIn: '90d' }
+        );
+
+        // Store token
+        await client.query(
+            `INSERT INTO user_token (user_id, acc_token, expire_at) 
+             VALUES ($1, $2, NOW() + INTERVAL '1 hour')`,
+            [user.id, token]
+        );
+
+        return {
+            id: user.id,
+            firstName: user.first_name,
+            lastName: user.last_name,
+            email: user.email,
+            role: user.role,
+            universityId: user.universityid,
+            token
+        };
+    } finally {
+        client.release();
+    }
+};
 
 
     exports.uploadProfilePicture = async (file) => {
