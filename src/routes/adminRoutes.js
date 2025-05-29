@@ -1,467 +1,196 @@
-const express = require('express');
+const express = require("express");
+const adminAuthController = require("../controllers/adminauthController");
+const AdminController = require('../controllers/adminController');
+
 const router = express.Router();
-const adminAuthController = require('../controllers/adminAuthController');
-const adminController = require('../controllers/adminController');
 
 /**
  * @swagger
  * tags:
- *   - name: Admin Authentication
- *     description: Admin registration and authentication
- *   - name: User Management
- *     description: Admin operations for managing users
- *   - name: Statistics
- *     description: Platform analytics
- *   - name: Report Management
- *     description: Handling user reports
- *   - name: Notifications
- *     description: Push notification management
- *   - name: Moderation
- *     description: Content moderation operations
+ *   name: Admin
+ *   description: Admin authentication and management APIs
  */
 
 /**
  * @swagger
- * /api/admin/auth/signup:
+ * /api/admin/signup:
  *   post:
- *     tags: [Admin Authentication]
- *     summary: Register a new admin account
- *     description: Creates a new admin user with elevated privileges
+ *     summary: Register an admin
+ *     description: Allows an admin to sign up with required details.
+ *     tags:
+ *       - Admin
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required: [firstName, lastName, email, password, universityId, role]
+ *             required:
+ *               - firstName
+ *               - lastName
+ *               - email
+ *               - password
+ *               - universityId
+ *               - role
  *             properties:
  *               firstName:
  *                 type: string
- *                 example: Admin
+ *                 example: John
  *               lastName:
  *                 type: string
- *                 example: User
+ *                 example: Doe
  *               email:
  *                 type: string
  *                 format: email
- *                 example: admin@university.edu
+ *                 example: john@example.com
  *               password:
  *                 type: string
  *                 format: password
- *                 example: securePassword123
+ *                 example: securepassword
  *               universityId:
  *                 type: string
- *                 example: UNIV-ADMIN-001
+ *                 example: UNI12345
  *               role:
  *                 type: string
- *                 enum: [Admin]
- *                 example: Admin
+ *                 example: teacher
  *     responses:
  *       201:
- *         description: Admin created successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 id:
- *                   type: integer
- *                 firstName:
- *                   type: string
- *                 lastName:
- *                   type: string
- *                 email:
- *                   type: string
- *                 universityId:
- *                   type: string
- *                 role:
- *                   type: string
+ *         description: Admin successfully registered
  *       400:
- *         description: All fields are required
+ *         description: Bad request (missing fields or validation error)
  *       500:
- *         description: Internal server error
+ *         description: Server error
  */
-router.post('/auth/signup', adminAuthController.signup);
+router.post("/signup", adminAuthController.signup);
 
 /**
  * @swagger
- * /api/admin/auth/signin:
+ * /api/admin/signin:
  *   post:
- *     tags: [Admin Authentication]
- *     summary: Authenticate admin
- *     description: Returns JWT token for authenticated admin
+ *     summary: Authenticate an admin
+ *     description: Logs in an admin and returns admin details.
+ *     tags:
+ *       - Admin
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required: [email, password]
+ *             required:
+ *               - universityId
+ *               - email
+ *               - password
  *             properties:
+ *               universityId:
+ *                 type: string
+ *                 example: UNI12345
  *               email:
  *                 type: string
  *                 format: email
- *                 example: admin@university.edu
+ *                 example: admin@example.com
  *               password:
  *                 type: string
  *                 format: password
- *                 example: securePassword123
+ *                 example: securepassword
  *     responses:
  *       200:
- *         description: Authentication successful
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 id:
- *                   type: integer
- *                 firstName:
- *                   type: string
- *                 lastName:
- *                   type: string
- *                 email:
- *                   type: string
- *                 universityId:
- *                   type: string
- *                 role:
- *                   type: string
- *                 token:
- *                   type: string
+ *         description: Admin login successful
  *       400:
- *         description: Email and password are required
+ *         description: Email and password required
  *       401:
  *         description: Invalid credentials
  */
-router.post('/auth/signin', adminAuthController.signin);
+router.post("/signin", adminAuthController.signin);
 
 /**
  * @swagger
- * /api/admin/users:
+ * /api/admin/dashboard/stats:
  *   get:
- *     tags: [User Management]
- *     summary: Get paginated list of users
- *     description: Retrieve users with pagination and search capabilities
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - name: page
- *         in: query
- *         schema:
- *           type: integer
- *           minimum: 1
- *           default: 1
- *       - name: limit
- *         in: query
- *         schema:
- *           type: integer
- *           minimum: 1
- *           maximum: 100
- *           default: 10
- *       - name: search
- *         in: query
- *         schema:
- *           type: string
+ *     summary: Get admin dashboard statistics
+ *     description: Retrieve statistics for the admin dashboard.
+ *     tags:
+ *       - Admin
  *     responses:
  *       200:
- *         description: List of users
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 users:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/User'
- *                 total:
- *                   type: integer
- *                 page:
- *                   type: integer
- *                 pages:
- *                   type: integer
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Internal server error
- */
-router.get('/users', adminController.getUsers);
-
-/**
- * @swagger
- * /api/admin/users/{id}/status:
- *   patch:
- *     tags: [User Management]
- *     summary: Update user activation status
- *     description: Enable or disable a user account
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - name: id
- *         in: path
- *         required: true
- *         schema:
- *           type: integer
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               isActive:
- *                 type: boolean
- *     responses:
- *       200:
- *         description: Status updated successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/User'
- *       401:
- *         description: Unauthorized
- *       404:
- *         description: User not found
- */
-router.patch('/users/:id/status',  adminController.updateUserStatus);
-
-/**
- * @swagger
- * /api/admin/users/{id}/role:
- *   patch:
- *     tags: [User Management]
- *     summary: Update user role
- *     description: Change a user's role (Admin, Teacher, Student)
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - name: id
- *         in: path
- *         required: true
- *         schema:
- *           type: integer
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               role:
- *                 type: string
- *                 enum: [Admin, Teacher, Student]
- *     responses:
- *       200:
- *         description: Role updated successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/User'
- *       400:
- *         description: Invalid role specified
- *       401:
- *         description: Unauthorized
- *       404:
- *         description: User not found
- */
-router.patch('/users/:id/role', adminController.updateUserRole);
-
-/**
- * @swagger
- * /api/admin/users/{id}:
- *   put:
- *     tags: [User Management]
- *     summary: Update user details
- *     description: Modify user information (name, email, university ID)
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - name: id
- *         in: path
- *         required: true
- *         schema:
- *           type: integer
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               firstName:
- *                 type: string
- *               lastName:
- *                 type: string
- *               email:
- *                 type: string
- *               universityId:
- *                 type: string
- *     responses:
- *       200:
- *         description: User updated successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/User'
- *       400:
- *         description: Invalid input data
- *       401:
- *         description: Unauthorized
- *       404:
- *         description: User not found
- *   delete:
- *     tags: [User Management]
- *     summary: Delete a user
- *     description: Permanently remove a user and all associated content
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - name: id
- *         in: path
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: User deleted successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 message:
- *                   type: string
- *       401:
- *         description: Unauthorized
- *       404:
- *         description: User not found
- *       500:
- *         description: Internal server error
- */
-router.put('/users/:id',  adminController.updateUserDetails);
-router.delete('/users/:id', authMiddleware, adminController.deleteUser);
-
-/**
- * @swagger
- * /api/admin/statistics/users:
- *   get:
- *     tags: [Statistics]
- *     summary: Get user statistics
- *     description: Retrieve platform user metrics
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: User statistics
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 totalUsers:
- *                   type: integer
- *                 activeUsers:
- *                   type: integer
- *                 newUsers:
- *                   type: integer
+ *         description: Dashboard statistics retrieved successfully
  *       401:
  *         description: Unauthorized
  */
-router.get('/statistics/users',  adminController.getUserStatistics);
-
-/**
- * @swagger
- * /api/admin/statistics/content:
- *   get:
- *     tags: [Statistics]
- *     summary: Get content statistics
- *     description: Retrieve platform content metrics
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Content statistics
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 totalPosts:
- *                   type: integer
- *                 totalGroups:
- *                   type: integer
- *                 totalEvents:
- *                   type: integer
- *                 pendingReports:
- *                   type: integer
- *       401:
- *         description: Unauthorized
- */
-router.get('/statistics/content',  adminController.getContentStatistics);
+router.get('/dashboard/stats', AdminController.getDashboardStats);
 
 /**
  * @swagger
  * /api/admin/reports:
  *   get:
- *     tags: [Report Management]
- *     summary: Get paginated reports
- *     description: Retrieve unresolved reports with pagination
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - name: page
- *         in: query
- *         schema:
- *           type: integer
- *           minimum: 1
- *           default: 1
- *       - name: limit
- *         in: query
- *         schema:
- *           type: integer
- *           minimum: 1
- *           maximum: 100
- *           default: 10
+ *     summary: Get all user reports
+ *     description: Retrieve all user reports for review.
+ *     tags:
+ *       - Admin
  *     responses:
  *       200:
- *         description: List of reports
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 reports:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Report'
- *                 total:
- *                   type: integer
- *                 page:
- *                   type: integer
- *                 pages:
- *                   type: integer
+ *         description: Reports retrieved successfully
  *       401:
  *         description: Unauthorized
  */
-router.get('/reports',  adminController.getReports);
+router.get('/reports', AdminController.getReports);
 
 /**
  * @swagger
  * /api/admin/reports/{id}/resolve:
  *   post:
- *     tags: [Report Management]
- *     summary: Resolve a report
- *     description: Mark a report as resolved with action taken
- *     security:
- *       - bearerAuth: []
+ *     summary: Resolve a user report
+ *     description: Mark a specific user report as resolved.
+ *     tags:
+ *       - Admin
  *     parameters:
- *       - name: id
- *         in: path
+ *       - in: path
+ *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *         description: Report ID
+ *     responses:
+ *       200:
+ *         description: Report resolved successfully
+ *       404:
+ *         description: Report not found
+ *       401:
+ *         description: Unauthorized
+ */
+router.post('/reports/:id/resolve', AdminController.resolveReport);
+
+/**
+ * @swagger
+ * /api/admin/users:
+ *   get:
+ *     summary: Get all users
+ *     description: Retrieve a list of all users.
+ *     tags:
+ *       - Admin
+ *     responses:
+ *       200:
+ *         description: Users retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/users', AdminController.getUsers);
+
+/**
+ * @swagger
+ * /api/admin/users/{id}/status:
+ *   put:
+ *     summary: Update user status
+ *     description: Update the status of a user (e.g., active, suspended).
+ *     tags:
+ *       - Admin
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
  *     requestBody:
  *       required: true
  *       content:
@@ -469,35 +198,155 @@ router.get('/reports',  adminController.getReports);
  *           schema:
  *             type: object
  *             properties:
- *               actionTaken:
+ *               status:
  *                 type: string
- *                 description: Action taken to resolve the report
- *               adminId:
- *                 type: integer
- *                 description: ID of the admin resolving the report
+ *                 example: active
  *     responses:
  *       200:
- *         description: Report resolved successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Report'
+ *         description: User status updated successfully
+ *       404:
+ *         description: User not found
  *       401:
  *         description: Unauthorized
- *       404:
- *         description: Report not found
  */
-router.post('/reports/:id/resolve',  adminController.resolveReport);
+router.put('/users/:id/status', AdminController.updateUserStatus);
 
 /**
  * @swagger
- * /api/admin/notifications:
+ * /api/admin/users/{id}/role:
+ *   put:
+ *     summary: Update user role
+ *     description: Update the role of a user.
+ *     tags:
+ *       - Admin
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               role:
+ *                 type: string
+ *                 example: student
+ *     responses:
+ *       200:
+ *         description: User role updated successfully
+ *       404:
+ *         description: User not found
+ *       401:
+ *         description: Unauthorized
+ */
+router.put('/users/:id/role', AdminController.updateUserRole);
+
+/**
+ * @swagger
+ * /api/admin/users/{id}/details:
+ *   put:
+ *     summary: Update user details
+ *     description: Update details of a user.
+ *     tags:
+ *       - Admin
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               firstName:
+ *                 type: string
+ *                 example: John
+ *               lastName:
+ *                 type: string
+ *                 example: Doe
+ *               email:
+ *                 type: string
+ *                 example: john@example.com
+ *     responses:
+ *       200:
+ *         description: User details updated successfully
+ *       404:
+ *         description: User not found
+ *       401:
+ *         description: Unauthorized
+ */
+router.put('/users/:id/details', AdminController.updateUserDetails);
+
+// router.delete('/users/:id', AdminController.softDeleteUser);
+
+/**
+ * @swagger
+ * /api/admin/users/{id}:
+ *   delete:
+ *     summary: Delete a user
+ *     description: Permanently delete a user by ID.
+ *     tags:
+ *       - Admin
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: User deleted successfully
+ *       404:
+ *         description: User not found
+ *       401:
+ *         description: Unauthorized
+ */
+router.delete('/users/:id', AdminController.deleteUser);
+
+/**
+ * @swagger
+ * /api/admin/posts/{id}:
+ *   delete:
+ *     summary: Delete a post as admin
+ *     description: Delete a post by ID as an admin.
+ *     tags:
+ *       - Admin
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Post ID
+ *     responses:
+ *       200:
+ *         description: Post deleted successfully
+ *       404:
+ *         description: Post not found
+ *       401:
+ *         description: Unauthorized
+ */
+router.delete('/posts/:id', AdminController.deletePostAsAdmin);
+
+/**
+ * @swagger
+ * /api/admin/send-notification:
  *   post:
- *     tags: [Notifications]
  *     summary: Send push notification
- *     description: Send notification to users via OneSignal
- *     security:
- *       - bearerAuth: []
+ *     description: Send a push notification to users.
+ *     tags:
+ *       - Admin
  *     requestBody:
  *       required: true
  *       content:
@@ -510,46 +359,32 @@ router.post('/reports/:id/resolve',  adminController.resolveReport);
  *                 example: Important Update
  *               message:
  *                 type: string
- *                 example: New features available in the app
- *               userIds:
- *                 type: array
- *                 items:
- *                   type: string
- *                 description: Specific user IDs to target
- *                 example: ["user123", "user456"]
- *               segments:
- *                 type: array
- *                 items:
- *                   type: string
- *                 description: User segments to target
- *                 example: ["Active Users"]
+ *                 example: The system will be down for maintenance tonight.
  *     responses:
  *       200:
  *         description: Notification sent successfully
  *       400:
- *         description: OneSignal credentials not configured
+ *         description: Bad request
  *       401:
  *         description: Unauthorized
- *       500:
- *         description: Notification failed
  */
-router.post('/notifications',  adminController.sendPushNotification);
+router.post('/send-notification', AdminController.sendPushNotification);
 
 /**
  * @swagger
- * /api/admin/posts/{id}:
- *   delete:
- *     tags: [Moderation]
- *     summary: Delete post as admin
- *     description: Remove a post and all associated content (comments, reports)
- *     security:
- *       - bearerAuth: []
+ * /api/admin/users/{id}/reset-password:
+ *   post:
+ *     summary: Reset user password
+ *     description: Reset the password for a user by ID.
+ *     tags:
+ *       - Admin
  *     parameters:
- *       - name: id
- *         in: path
+ *       - in: path
+ *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *         description: User ID
  *     requestBody:
  *       required: true
  *       content:
@@ -557,172 +392,18 @@ router.post('/notifications',  adminController.sendPushNotification);
  *           schema:
  *             type: object
  *             properties:
- *               adminId:
- *                 type: integer
- *                 description: ID of the admin performing the action
- *               reason:
+ *               newPassword:
  *                 type: string
- *                 description: Reason for deletion
+ *                 example: newsecurepassword
  *     responses:
  *       200:
- *         description: Post deleted successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 userId:
- *                   type: integer
- *                   description: ID of the user who owned the post
- *       401:
- *         description: Unauthorized
+ *         description: Password reset successfully
  *       404:
- *         description: Post not found
- */
-router.delete('/posts/:id',  adminController.deletePostAsAdmin);
-
-/**
- * @swagger
- * /api/admin/moderation-logs:
- *   get:
- *     tags: [Moderation]
- *     summary: Get moderation logs
- *     description: Retrieve admin moderation actions with pagination
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - name: page
- *         in: query
- *         schema:
- *           type: integer
- *           minimum: 1
- *           default: 1
- *       - name: limit
- *         in: query
- *         schema:
- *           type: integer
- *           minimum: 1
- *           maximum: 100
- *           default: 10
- *     responses:
- *       200:
- *         description: List of moderation logs
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 logs:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/ModerationLog'
- *                 total:
- *                   type: integer
- *                 page:
- *                   type: integer
- *                 pages:
- *                   type: integer
+ *         description: User not found
  *       401:
  *         description: Unauthorized
  */
-router.get('/moderation-logs', adminController.getModerationLogs);
+router.post('/users/:id/reset-password', AdminController.resetUserPassword);
+
 
 module.exports = router;
-
-/**
- * @swagger
- * components:
- *   schemas:
- *     User:
- *       type: object
- *       properties:
- *         id:
- *           type: integer
- *         firstName:
- *           type: string
- *         lastName:
- *           type: string
- *         email:
- *           type: string
- *         role:
- *           type: string
- *         universityId:
- *           type: string
- *         profilePicture:
- *           type: string
- *         lastLogin:
- *           type: string
- *           format: date-time
- *         isActive:
- *           type: boolean
- * 
- *     Report:
- *       type: object
- *       properties:
- *         id:
- *           type: integer
- *         reporterId:
- *           type: integer
- *         reportedUserId:
- *           type: integer
- *         postId:
- *           type: integer
- *         commentId:
- *           type: integer
- *         reason:
- *           type: string
- *         createdAt:
- *           type: string
- *           format: date-time
- *         resolved:
- *           type: boolean
- *         resolvedAt:
- *           type: string
- *           format: date-time
- *         resolvedBy:
- *           type: integer
- *         actionTaken:
- *           type: string
- *         reporterName:
- *           type: string
- *         reportedName:
- *           type: string
- *         postText:
- *           type: string
- *         commentText:
- *           type: string
- * 
- *     ModerationLog:
- *       type: object
- *       properties:
- *         id:
- *           type: integer
- *         adminId:
- *           type: integer
- *         userId:
- *           type: integer
- *         actionType:
- *           type: string
- *           enum: [post_deletion, account_suspension, role_change]
- *         targetId:
- *           type: integer
- *         reason:
- *           type: string
- *         actionDate:
- *           type: string
- *           format: date-time
- *         adminFirstName:
- *           type: string
- *         adminLastName:
- *           type: string
- *         userFirstName:
- *           type: string
- *         userLastName:
- *           type: string
- * 
- *   securitySchemes:
- *     bearerAuth:
- *       type: http
- *       scheme: bearer
- *       bearerFormat: JWT
- */
