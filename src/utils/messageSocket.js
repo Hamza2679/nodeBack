@@ -1,158 +1,152 @@
 const { Server } = require("socket.io");
 const MessageService = require("../services/messageService");
 const { uploadToS3 } = require("../middleware/upload");
-const { verifyToken } = require("../middleware/authMiddleware.js");
-const users = new Map();
+// Assuming you have a method to get user by ID
 
 let io = null;
+const userConnectionCount = new Map();
+
+function logSocketEvent(event, data) {
+  console.log(`[${new Date().toISOString()}] [SOCKET] ${event}`, JSON.stringify(data, null, 2));
+}
 
 function initSocket(server) {
   io = new Server(server, {
     cors: {
       origin: "*",
       methods: ["GET", "POST"],
+      credentials: true
     },
-  });
-
-  io.on("connection", async (socket) => {
-    console.log("🔌 Socket connected:", socket.id);
-  
-    const token = socket.handshake.auth.token;
-  
-    try {
-      const userId = await verifyToken(token);
-      if (!userId) {
-        socket.emit("error", { message: "Invalid token." });
-        return socket.disconnect(true);
-      }
-  
-      users.set(userId, socket.id);
-      socket.userId = userId;
-  
-      console.log(`✅ Registered user ${userId} with socket ${socket.id}`);
-      socket.broadcast.emit("user_online", userId);
-      const onlineUsers = Array.from(users.keys()).map(id => ({ userId: id }));
-  socket.emit("initial_status", onlineUsers);
-      
-    } catch (err) {
-      console.error("Auth error:", err.message);
-      socket.emit("error", { message: "Authentication failed." });
-      socket.disconnect(true);
+    connectionStateRecovery: {
+      maxDisconnectionDuration: 2 * 60 * 1000,
+      skipMiddlewares: true,
     }
-   // Add new handler for status checks
-   socket.on("check_status", (targetUserId) => {
-    // Handle both object and string formats
-    const userIdToCheck = targetUserId?.userId || targetUserId;
-    const isOnline = users.has(userIdToCheck);
-    
-    socket.emit("user_status", {
-      userId: userIdToCheck,
-      isOnline: isOnline
-    });
   });
-  
- 
-  
 
-    // ... rest of your event listeners like send_message, edit_message, etc.
-  
+  io.on("connection", (socket) => {
+    logSocketEvent("CONNECTION", { socketId: socket.id });
+
+    // Join personal room (client must send userId manually)
+    socket.on("register_user", (userId) => {
+      if (userId) {
+        socket.join(userId);
+        socket.data.userId = userId;
+
+        const prevCount = userConnectionCount.get(userId) || 0;
+        userConnectionCount.set(userId, prevCount + 1);
+
+        if (prevCount === 0) {
+          socket.broadcast.emit("user_online", { userId });
+        }
+
+        const onlineUsers = Array.from(userConnectionCount.keys())
+          .filter(id => userConnectionCount.get(id) > 0)
+          .map(id => ({ userId: id }));
+
+        socket.emit("initial_status", onlineUsers);
+        logSocketEvent("REGISTER_USER", { userId, socketId: socket.id });
+      }
+    });
+
+    socket.on("join_group", (groupId) => {
+      if (groupId) {
+        const roomName = `group_${groupId}`;
+        socket.join(roomName);
+        socket.emit("group_joined", { groupId });
+      }
+    });
+
+    socket.on("leave_group", (groupId) => {
+      if (groupId) {
+        const roomName = `group_${groupId}`;
+        socket.leave(roomName);
+        socket.emit("group_left", { groupId });
+      }
+    });
+
+    socket.on("check_status", (targetUserId) => {
+      const isOnline = userConnectionCount.has(targetUserId) && 
+                       userConnectionCount.get(targetUserId) > 0;
+      socket.emit("user_status", { userId: targetUserId, isOnline });
+    });
+
     socket.on("send_message", async (data) => {
       const { senderId, receiverId, text, image } = data;
-    
+
       if (!senderId || !receiverId || (!text && !image)) {
         return socket.emit("error", { message: "Invalid message data." });
       }
-    
+
       try {
         let imageUrl = null;
-    
-        if (image && image.base64 && image.name) {
+        if (image?.base64 && image?.name) {
           const buffer = Buffer.from(image.base64, "base64");
           const fileName = `${Date.now()}-${image.name}`;
           imageUrl = await uploadToS3(buffer, fileName, "social-sync-for-final");
         }
-    
+
         const message = await MessageService.createMessage(senderId, receiverId, text, imageUrl);
-    
-        // ✅ Emit to receiver's room
         io.to(receiverId).emit("receive_message", message);
-    
-        // ✅ Emit to sender's room
         io.to(senderId).emit("receive_message", message);
-    
       } catch (err) {
-        console.error("💥 Error sending message:", err);
         socket.emit("error", { message: "Failed to send message." });
       }
     });
-    
 
-    // ✅ Ping-pong heartbeat
-    socket.on("ping", () => {
-      socket.emit("pong");
-    });
+    socket.on("edit_message", async (data) => {
+      const { messageId, newText, userId } = data;
 
-    socket.on('join', ({ userId }) => {
-      if (userId) {
-        socket.join(userId);
-        console.log(`👥 User ${userId} joined their personal room`);
+      if (!messageId || !newText || !userId) {
+        return socket.emit("error", { message: "Invalid edit request." });
+      }
+
+      try {
+        const editedMessage = await MessageService.editMessage(messageId, userId, newText);
+        if (editedMessage) {
+          io.to(editedMessage.senderId).emit("message_edited", editedMessage);
+          io.to(editedMessage.receiverId).emit("message_edited", editedMessage);
+        }
+      } catch (err) {
+        socket.emit("error", { message: "Failed to edit message." });
       }
     });
-    
+
+    socket.on("delete_message", async (data) => {
+      const { messageId, userId } = data;
+
+      if (!messageId || !userId) {
+        return socket.emit("error", { message: "Message ID and user ID required." });
+      }
+
+      try {
+        const deletedMessage = await MessageService.deleteMessage(messageId, userId);
+        if (deletedMessage) {
+          io.to(deletedMessage.senderId).emit("message_deleted", { messageId });
+          io.to(deletedMessage.receiverId).emit("message_deleted", { messageId });
+        }
+      } catch (err) {
+        socket.emit("error", { message: "Failed to delete message." });
+      }
+    });
 
     socket.on("disconnect", () => {
-      const userId = socket.userId;
+      const userId = socket.data.userId;
       if (userId) {
-        users.delete(userId);
-        // Send as object
-        socket.broadcast.emit("user_offline", { userId: userId });
+        const count = userConnectionCount.get(userId) || 1;
+        if (count <= 1) {
+          userConnectionCount.delete(userId);
+          socket.broadcast.emit("user_offline", { userId });
+        } else {
+          userConnectionCount.set(userId, count - 1);
+        }
       }
     });
-    
-    // 🔄 Edit Message
-socket.on("edit_message", async ({ messageId, newText }) => {
-  if (!messageId || !newText) {
-    return socket.emit("error", { message: "Invalid edit request." });
-  }
-
-  try {
-    const editedMessage = await MessageService.editMessage(messageId, socket.userId, newText);
-
-    const receiverSocketId = users.get(editedMessage.receiverId);
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("message_edited", editedMessage);
-    }
-
-    socket.emit("message_edited", editedMessage);
-  } catch (err) {
-    console.error("💥 Edit Message Error:", err.message);
-    socket.emit("error", { message: "Failed to edit message." });
-  }
-});
-
-// ❌ Delete Message
-socket.on("delete_message", async ({ messageId }) => {
-  if (!messageId) {
-    return socket.emit("error", { message: "Message ID required." });
-  }
-
-  try {
-    const deletedMessage = await MessageService.deleteMessage(messageId, socket.userId);
-
-    const receiverSocketId = users.get(deletedMessage.receiverId);
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("message_deleted", { messageId });
-    }
-
-    socket.emit("message_deleted", { messageId });
-  } catch (err) {
-    console.error("💥 Delete Message Error:", err.message);
-    socket.emit("error", { message: "Failed to delete message." });
-  }
-});
-
   });
-
 }
 
-module.exports = { initSocket };
+function getIO() {
+  if (!io) throw new Error("Socket.io not initialized!");
+  return io;
+}
+
+module.exports = { initSocket, getIO };
