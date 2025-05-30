@@ -1,4 +1,4 @@
-// socket.js
+const jwt = require("jsonwebtoken");
 let io = null;
 
 module.exports = {
@@ -6,51 +6,57 @@ module.exports = {
         io = require("socket.io")(server, {
             cors: {
                 origin: "*",
-                methods: ["GET", "POST"]
+                methods: ["GET", "POST"],
+                credentials: true
             }
         });
-// Modify the existing socket.io initialization to handle group post events
-io.on("connection", (socket) => {
-    console.log("🔌 Client connected:", socket.id);
 
-    // Group Room Management
-    socket.on("join_group", (groupId) => {
-        socket.join(`group_${groupId}`);
-        console.log(`📥 User joined group room: group_${groupId}`);
-    });
+        // Authentication middleware
+        io.use((socket, next) => {
+            const token = socket.handshake.auth.token;
+            if (!token) return next(new Error("Authentication error"));
+            
+            try {
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                socket.user = decoded;
+                next();
+            } catch (err) {
+                next(new Error("Invalid token"));
+            }
+        });
 
-    socket.on("leave_group", (groupId) => {
-        socket.leave(`group_${groupId}`);
-        console.log(`📤 User left group room: group_${groupId}`);
-    });
- socket.on("join_post", (postId) => {
-        socket.join(`post_${postId}`);
-        console.log(`📥 User joined post room: post_${postId}`);
-    });
+        io.on("connection", (socket) => {
+            console.log(`🔌 User ${socket.user?.userId} connected: ${socket.id}`);
 
-    socket.on("leave_post", (postId) => {
-        socket.leave(`post_${postId}`);
-        console.log(`📤 User left post room: post_${postId}`);
-    });
+            // Group Room Management
+            socket.on("join_group", (groupId) => {
+                socket.join(`group_${groupId}`);
+                console.log(`📥 User joined group_${groupId}`);
+            });
 
-    // Add group post event listeners
-    socket.on("group_post_action", (data) => {
-        console.log(`Received group post action: ${data.action}`);
-        // Handle any client-initiated post actions if needed
-    });
+            socket.on("leave_group", (groupId) => {
+                socket.leave(`group_${groupId}`);
+                console.log(`📤 User left group_${groupId}`);
+            });
 
-    socket.on("disconnect", () => {
-        console.log("❌ Client disconnected:", socket.id);
-    });
-});
+            // Post-specific rooms
+            socket.on("join_post", (postId) => {
+                socket.join(`post_${postId}`);
+                console.log(`📥 User joined post_${postId}`);
+            });
+
+            // Remove the group_post_update handler - it's not needed
+            // (We're handling emissions directly in controllers)
+
+            socket.on("disconnect", () => {
+                console.log(`❌ User disconnected: ${socket.id}`);
+            });
+        });
 
         return io;
     },
-
     getIO: () => {
-        if (!io) {
-            throw new Error("Socket.io not initialized!");
-        }
+        if (!io) throw new Error("Socket.io not initialized!");
         return io;
     }
 };
