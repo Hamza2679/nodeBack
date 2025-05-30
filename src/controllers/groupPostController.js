@@ -3,7 +3,7 @@ const { getIO } = require("../utils/socket");
 const { uploadToS3 } = require("../services/uploadService");
 const PostService = require("../services/postService");
 const GroupService = require("../services/groupService");
-const User = require("../models/user"); // Make sure to import your User model
+const User = require("../models/User"); // Make sure to import your User model
 
 // Enhanced logging helper
 function logEvent(event, data) {
