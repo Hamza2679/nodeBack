@@ -5,11 +5,13 @@ class GroupPostService {
     static async create(group_id, user_id, text, image_url) {
         const client = await pool.connect();
         try {
+            console.log("Creating post for group:", group_id, "by user:", user_id);
             const result = await client.query(
                 `INSERT INTO group_posts (group_id, user_id, text, image_url, created_at)
                  VALUES ($1, $2, $3, $4, NOW()) RETURNING *`,
                 [group_id, user_id, text, image_url]
             );
+            console.log("Post created successfully:", result.rows[0]);
     
             return result.rows[0];
         } catch (error) {

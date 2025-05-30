@@ -18,11 +18,13 @@ exports.createGroupPost = async (req, res) => {
         if (req.file) {
             imageUrl = await uploadToS3(req.file.buffer, req.file.originalname, 'social-sync-for-final');
         }
+        console.log("calling grouppost service.create");
 
         const newPost = await GroupPostService.create(group_id, user_id, text, imageUrl);
-        
+        console.log("Post created:", newPost);
         // Get io instance and emit
         const io = getIO();
+        console.log("Emitting new group post to group:", group_id);
         io.to(`group_${group_id}`).emit("new_group_post", {
             ...newPost,
             user: {
@@ -32,7 +34,9 @@ exports.createGroupPost = async (req, res) => {
                 role: req.user.role
             }
         });
-        
+        console.log("New group post emitted to socket");
+        console.log("New post data:", newPost);
+        console.log(res);
         res.status(201).json({ message: "Post created successfully", post: newPost });
     } catch (error) {
         res.status(500).json({ error: error.message });
