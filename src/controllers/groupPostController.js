@@ -9,7 +9,12 @@ exports.createGroupPost = async (req, res) => {
   try {
     const { group_id, text } = req.body;
     const user_id = req.user.userId;
-    
+    console.log("Creating group post with data:", {
+      group_id,
+      user_id,
+      text,
+      image: req.file ? req.file.originalname : null
+    });
     if (!group_id || !user_id) {
       return res.status(400).json({ error: "Group ID and User ID are required" });
     }
@@ -20,9 +25,15 @@ exports.createGroupPost = async (req, res) => {
     }
 
     const newPost = await GroupPostService.create(group_id, user_id, text, imageUrl);
-    
+    console.log("New post created:", newPost);
     // Get io instance from Express app
     const io = req.app.get("io");
+    console.log("Emitting new_group_post event to group:", group_id);
+    console.log("User details:", {
+      firstName: req.user.firstName,
+      lastName: req.user.lastName,
+      profilePicture: req.user.profilePicture
+    });
     io.to(`group_${group_id}`).emit("new_group_post", {
       ...newPost,
       user: {
@@ -173,6 +184,7 @@ exports.updateGroupPost = async (req, res) => {
         }
 
         const currentPost = await GroupPostService.getById(postId);
+        console.log("Current Post:", currentPost);
         if (!currentPost || currentPost.user_id !== userId) { // Fix property name
             return res.status(403).json({ error: "Post not found or unauthorized" });
         }
@@ -183,8 +195,10 @@ exports.updateGroupPost = async (req, res) => {
         }
 
         const updatedPost = await GroupPostService.update(postId, userId, text, imageUrl);
+        console.log("Updated Post:", updatedPost);
         
         const io = req.app.get("io");
+        console.log("Emitting updated_group_post event to group:", updatedPost.group_id);
         io.to(`group_${updatedPost.group_id}`).emit("updated_group_post", {
             ...updatedPost,
             user: {
