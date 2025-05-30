@@ -21,13 +21,14 @@ exports.verifySignupOTP = async (req, res) => {
 
 exports.completeSignup = async (req, res) => {
     try {
-        const { universityId, password, firstName, lastName, email } = req.body;
+        const { universityId, password, firstName, lastName, email,profilePicture } = req.body;
         const result = await authService.completeSignup(
             universityId, 
             password, 
             firstName, 
             lastName, 
-            email
+            email,
+            profilePicture
         );
         res.status(200).json(result);
     } catch (error) {
