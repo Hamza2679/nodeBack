@@ -13,6 +13,9 @@ const eventRoutes = require("./routes/eventRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const followRoutes = require("./routes/followRoutes");
 const studentRoutes = require("./routes/studentRoutes"); 
+const reportRoutes = require("./routes/reportRoutes");
+const groupPostReportRoutes = require('./routes/groupPostReportRoutes');
+
 
 const db = require("./config/db");
 const swaggerDocs = require("../swagger");
@@ -34,6 +37,8 @@ app.use(cors({
 app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/api/auth", authRoutes);
+app.use('/api', reportRoutes);
+app.use('/api', groupPostReportRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/groups", groupRoutes);
 app.use("/api/posts", postRoutes);
