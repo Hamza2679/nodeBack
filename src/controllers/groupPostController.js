@@ -3,80 +3,195 @@ const { getIO } = require("../utils/socket");
 const { uploadToS3 } = require("../services/uploadService");
 const PostService = require("../services/postService");
 const GroupService = require("../services/groupService");
+const User = require("../models/user"); // Make sure to import your User model
 
+// Enhanced logging helper
+function logEvent(event, data) {
+  console.log(`[${new Date().toISOString()}] [EVENT] ${event}`, JSON.stringify(data, null, 2));
+}
 
 exports.createGroupPost = async (req, res) => {
   try {
     const { group_id, text } = req.body;
     const user_id = req.user.userId;
-    console.log("Creating group post with data:", {
+    
+    logEvent("CREATE_GROUP_POST_START", {
       group_id,
       user_id,
       text,
-      image: req.file ? req.file.originalname : null
+      hasImage: !!req.file
     });
+
     if (!group_id || !user_id) {
+      logEvent("CREATE_GROUP_POST_VALIDATION_FAIL", { error: "Group ID and User ID are required" });
       return res.status(400).json({ error: "Group ID and User ID are required" });
     }
     
     let imageUrl = null;
     if (req.file) {
+      logEvent("UPLOAD_IMAGE_START", { originalname: req.file.originalname });
       imageUrl = await uploadToS3(req.file.buffer, req.file.originalname, 'social-sync-for-final');
+      logEvent("UPLOAD_IMAGE_SUCCESS", { imageUrl });
     }
 
+    logEvent("CREATE_POST_DB_START", { group_id, user_id });
     const newPost = await GroupPostService.create(group_id, user_id, text, imageUrl);
-    console.log("New post created:", newPost);
-    // Get io instance from Express app
-    const io = req.app.get("io");
-    console.log("Emitting new_group_post event to group:", group_id);
-    console.log("User details:", {
-      firstName: req.user.firstName,
-      lastName: req.user.lastName,
-      profilePicture: req.user.profilePicture
-    });
-    io.to(`group_${group_id}`).emit("new_group_post", {
+    logEvent("CREATE_POST_DB_SUCCESS", { postId: newPost.id });
+
+    // Get user details for socket emission
+    const user = await User.findById(user_id);
+    if (!user) {
+      logEvent("USER_NOT_FOUND", { user_id });
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const postWithUser = {
       ...newPost,
       user: {
-        firstName: req.user.firstName,
-        lastName: req.user.lastName,
-        profilePicture: req.user.profilePicture
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        profilePicture: user.profilePicture,
+        role: user.role
       }
+    };
+
+    const io = getIO();
+    const roomName = `group_${group_id}`;
+    
+    logEvent("EMIT_NEW_GROUP_POST", {
+      room: roomName,
+      postId: newPost.id,
+      groupId: group_id,
+      userId: user_id
+    });
+    
+    io.to(roomName).emit("new_group_post", {
+      post: postWithUser,
+      groupId: group_id
     });
     
     res.status(201).json({ message: "Post created successfully", post: newPost });
   } catch (error) {
+    logEvent("CREATE_GROUP_POST_ERROR", { error: error.message, stack: error.stack });
     res.status(500).json({ error: error.message });
   }
 };
 
-// Fixed delete handler
 exports.deleteGroupPost = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.userId;
 
+    logEvent("DELETE_GROUP_POST_START", { postId: id, userId });
+
     const deletedPost = await GroupPostService.delete(id, userId);
     if (!deletedPost) {
+      logEvent("DELETE_GROUP_POST_NOT_FOUND", { postId: id });
       return res.status(404).json({ error: "Post not found" });
     }
     
-    const io = req.app.get("io");
-    io.to(`group_${deletedPost.group_id}`).emit("deleted_group_post", {
+    const io = getIO();
+    const roomName = `group_${deletedPost.group_id}`;
+    
+    logEvent("EMIT_DELETED_GROUP_POST", {
+      room: roomName,
       postId: id,
-      groupId: deletedPost.group_id,
-      deletedBy: {
-        id: userId,
-        firstName: req.user.firstName,
-        lastName: req.user.lastName
-      }
+      groupId: deletedPost.group_id
     });
     
+    io.to(roomName).emit("deleted_group_post", {
+      postId: id,
+      groupId: deletedPost.group_id
+    });
+    
+    logEvent("DELETE_GROUP_POST_SUCCESS", { postId: id });
     res.status(200).json({ message: "Group post deleted successfully" });
   } catch (error) {
+    logEvent("DELETE_GROUP_POST_ERROR", { error: error.message });
     res.status(500).json({ error: error.message });
   }
 };
 
+exports.updateGroupPost = async (req, res) => {
+  try {
+    const { text } = req.body;
+    const postId = req.params.id;
+    const userId = req.user.userId;
+    
+    logEvent("UPDATE_GROUP_POST_START", {
+      postId,
+      userId,
+      textLength: text?.length || 0,
+      hasImage: !!req.file
+    });
+
+    if (!text && !req.file) {
+      logEvent("UPDATE_GROUP_POST_NO_CONTENT", { postId });
+      return res.status(400).json({ error: "No content to update" });
+    }
+
+    const currentPost = await GroupPostService.getById(postId);
+    if (!currentPost) {
+      logEvent("UPDATE_GROUP_POST_NOT_FOUND", { postId });
+      return res.status(404).json({ error: "Post not found" });
+    }
+    
+    if (currentPost.user_id !== userId) {
+      logEvent("UPDATE_GROUP_POST_UNAUTHORIZED", { postId, userId });
+      return res.status(403).json({ error: "Unauthorized to update this post" });
+    }
+
+    let imageUrl = currentPost.image_url;
+    if (req.file) {
+      logEvent("UPDATE_IMAGE_START", { originalname: req.file.originalname });
+      imageUrl = await uploadToS3(req.file.buffer, req.file.originalname, 'social-sync-for-final');
+      logEvent("UPDATE_IMAGE_SUCCESS", { imageUrl });
+    }
+
+    const updatedPost = await GroupPostService.update(postId, userId, text, imageUrl);
+    
+    // Get user details for socket emission
+    const user = await User.findById(userId);
+    if (!user) {
+      logEvent("USER_NOT_FOUND_UPDATE", { userId });
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const postWithUser = {
+      ...updatedPost,
+      user: {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        profilePicture: user.profilePicture,
+        role: user.role
+      }
+    };
+
+    const io = getIO();
+    const roomName = `group_${updatedPost.group_id}`;
+    
+    logEvent("EMIT_UPDATED_GROUP_POST", {
+      room: roomName,
+      postId,
+      groupId: updatedPost.group_id
+    });
+    
+    io.to(roomName).emit("updated_group_post", {
+      post: postWithUser,
+      groupId: updatedPost.group_id
+    });
+    
+    logEvent("UPDATE_GROUP_POST_SUCCESS", { postId });
+    res.status(200).json({ message: "Post updated successfully", post: updatedPost });
+  } catch (error) {
+    logEvent("UPDATE_GROUP_POST_ERROR", { error: error.message });
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// ... other controller functions ...
 
 exports.createReply = async (req, res) => {
     try {
@@ -141,75 +256,6 @@ exports.getGroupPostById = async (req, res) => {
         }
 
         res.status(200).json(groupPost);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-};
-
-// exports.deleteGroupPost = async (req, res) => {
-//     try {
-//         const { id } = req.params;
-//         const userId = req.user?.userId; 
-
-//         const result = await GroupPostService.delete(id, userId);
-//         if (!result.success) {
-//             return res.status(403).json({ error: "Unauthorized or post not found" });
-//         }
-        
-//        const io = req.app.get("io");
-//         io.to(`group_${result.group_id}`).emit("deleted_group_post", {
-//             postId: id,
-//             groupId: result.group_id,
-//             deletedBy: {
-//                 id: req.user.userId,
-//                 firstName: req.user.firstName,
-//                 lastName: req.user.lastName
-//             }
-//         });
-        
-//         res.status(200).json({ message: "Group post deleted successfully" });
-//     } catch (error) {
-//         res.status(500).json({ error: error.message });
-//     }
-// };
-
-exports.updateGroupPost = async (req, res) => {
-    try {
-        const { text } = req.body;
-        const postId = req.params.id;
-        const userId = req.user.userId; 
-        
-        if (!text && !req.file) {
-            return res.status(400).json({ error: "No content to update" });
-        }
-
-        const currentPost = await GroupPostService.getById(postId);
-        console.log("Current Post:", currentPost);
-        if (!currentPost || currentPost.user_id !== userId) { // Fix property name
-            return res.status(403).json({ error: "Post not found or unauthorized" });
-        }
-
-        let imageUrl = currentPost.image_url; 
-        if (req.file) {
-            imageUrl = await uploadToS3(req.file.buffer, req.file.originalname, 'social-sync-for-final');
-        }
-
-        const updatedPost = await GroupPostService.update(postId, userId, text, imageUrl);
-        console.log("Updated Post:", updatedPost);
-        
-        const io = req.app.get("io");
-        console.log("Emitting updated_group_post event to group:", updatedPost.group_id);
-        io.to(`group_${updatedPost.group_id}`).emit("updated_group_post", {
-            ...updatedPost,
-            user: {
-                firstName: req.user.firstName,
-                lastName: req.user.lastName,
-                profilePicture: req.user.profilePicture,
-                role: req.user.role
-            }
-        });
-        
-        res.status(200).json({ message: "Post updated successfully", post: updatedPost });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
