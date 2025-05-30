@@ -1,5 +1,5 @@
     const pool = require('../config/db');
-    const User = require('../models/user');
+    const User = require('../models/User');
     const jwt = require('jsonwebtoken');
     const bcrypt = require('bcryptjs');
     const dotenv = require("dotenv");
