@@ -17,8 +17,12 @@ exports.authenticateToken = async (req, res, next) => {
             message: err.name === 'TokenExpiredError' 
                 ? "Token expired" 
                 : "Invalid token" 
-        });
+        }
+    );
+        
     }
+   
+
 };
 
   exports.verifyToken = async (token) => {
