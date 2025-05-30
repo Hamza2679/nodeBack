@@ -195,6 +195,41 @@ exports.reportGroup = async (req, res) => {
     }
 };
 
+
+exports.deleteGroupAndReports = async (req, res) => {
+  try {
+    if (req.user.role !== 'Admin' && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const groupId = parseInt(req.params.groupId, 10);
+    const success = await GroupService.deleteGroupAndReports(groupId);
+
+    if (!success) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+
+    res.status(200).json({ message: 'Group and its reports deleted' });
+  } catch (err) {
+    console.error('Delete Group+Reports Error:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+exports.getReportedGroups = async (req, res) => {
+  try {
+    if (req.user.role !== 'Admin' && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    const list = await GroupService.listReportedGroups();
+    res.status(200).json({ reportedGroups: list });
+  } catch (err) {
+    console.error('Get Reported Groups Error:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+
 exports.removeMember = async (req, res) => {
     try {
         const { groupId, userId } = req.params;
