@@ -1,62 +1,149 @@
-// const jwt = require("jsonwebtoken");
-// let io = null;
+const GroupService = require('../services/groupService');
+const GroupPostService = require('../services/groupPostService');
+const UserService = require('../services/UserService');
 
-// module.exports = {
-//     init: (server) => {
-//         io = require("socket.io")(server, {
-//             cors: {
-//                 origin: "*",
-//                 methods: ["GET", "POST"],
-//                 credentials: true
-//             }
-//         });
+const userConnectionCount = new Map();
+const activeSockets = new Map();
 
-//         // Authentication middleware
-//         io.use((socket, next) => {
-//             const token = socket.handshake.auth.token;
-//             if (!token) return next(new Error("Authentication error"));
-            
-//             try {
-//                 const decoded = jwt.verify(token, process.env.JWT_SECRET);
-//                 socket.user = decoded;
-//                 next();
-//             } catch (err) {
-//                 next(new Error("Invalid token"));
-//             }
-//         });
+function handleGroupSocket(io, socket) {
+  const userId = socket.user?.id;
+  if (!userId) {
+    console.error("No userId found on socket. Disconnecting...");
+    return socket.disconnect();
+  }
 
-//         io.on("connection", (socket) => {
-//             console.log(`🔌 User ${socket.user?.userId} connected: ${socket.id}`);
+  console.log("🔌 Group Socket connected:", socket.id, "User ID:", userId);
 
-//             // Group Room Management
-//             socket.on("join_group", (groupId) => {
-//                 socket.join(`group_${groupId}`);
-//                 console.log(`📥 User joined group_${groupId}`);
-//             });
+  // Track user connections
+  const prevCount = userConnectionCount.get(userId) || 0;
+  userConnectionCount.set(userId, prevCount + 1);
 
-//             socket.on("leave_group", (groupId) => {
-//                 socket.leave(`group_${groupId}`);
-//                 console.log(`📤 User left group_${groupId}`);
-//             });
+  if (!activeSockets.has(userId)) {
+    activeSockets.set(userId, new Set());
+  }
+  activeSockets.get(userId).add(socket.id);
 
-//             // Post-specific rooms
-//             socket.on("join_post", (postId) => {
-//                 socket.join(`post_${postId}`);
-//                 console.log(`📥 User joined post_${postId}`);
-//             });
+  socket.on('join_group', (groupId) => {
+    console.log(`User ${userId} joining group ${groupId}`);
+    socket.join(`group_${groupId}`);
+  });
 
-//             // Remove the group_post_update handler - it's not needed
-//             // (We're handling emissions directly in controllers)
+  socket.on('new_group_post', async (postData) => {
+    try {
+      const newPost = await GroupPostService.create(
+        postData.groupId,
+        userId,
+        postData.text,
+        postData.imageUrl || null
+      );
 
-//             socket.on("disconnect", () => {
-//                 console.log(`❌ User disconnected: ${socket.id}`);
-//             });
-//         });
+      const user = await UserService.getUserById(userId);
+      if (!user) throw new Error('User not found');
 
-//         return io;
-//     },
-//     getIO: () => {
-//         if (!io) throw new Error("Socket.io not initialized!");
-//         return io;
-//     }
-// };
+      const postResponse = {
+        id: newPost.id,
+        groupId: newPost.group_id,
+        userId: newPost.user_id,
+        text: newPost.text,
+        imageUrl: newPost.image_url,
+        createdAt: newPost.created_at,
+        user: {
+          id: user.id,
+          firstName: user.first_name,
+          lastName: user.last_name,
+          profilePicture: user.profilepicture,
+          role: user.role
+        }
+      };
+
+      io.to(`group_${postData.groupId}`).emit('new_group_post', postResponse);
+    } catch (err) {
+      console.error('Error handling new_group_post:', err);
+      socket.emit('post_error', {
+        message: 'Failed to create post',
+        tempId: postData.tempId
+      });
+    }
+  });
+
+  socket.on('updated_group_post', async (postData) => {
+    try {
+      const updatedPost = await GroupPostService.update(
+        postData.id,
+        userId,
+        postData.text,
+        postData.imageUrl || null
+      );
+
+      if (!updatedPost) throw new Error('Post not found');
+
+      const user = await UserService.getUserById(userId);
+      if (!user) throw new Error('User not found');
+
+      const postResponse = {
+        id: updatedPost.id,
+        groupId: updatedPost.group_id,
+        userId: updatedPost.user_id,
+        text: updatedPost.text,
+        imageUrl: updatedPost.image_url,
+        createdAt: updatedPost.created_at,
+        updatedAt: updatedPost.updated_at,
+        user: {
+          id: user.id,
+          firstName: user.first_name,
+          lastName: user.last_name,
+          profilePicture: user.profilepicture,
+          role: user.role
+        }
+      };
+
+      io.to(`group_${postData.groupId}`).emit('updated_group_post', postResponse);
+    } catch (err) {
+      console.error('Error handling updated_group_post:', err);
+    }
+  });
+
+  socket.on('deleted_group_post', async (data) => {
+    try {
+      const isAdmin = await GroupService.isAdmin(data.groupId, userId);
+      const isPostOwner = await GroupPostService.isOwner(data.postId, userId);
+
+      if (!isAdmin && !isPostOwner) {
+        throw new Error('Unauthorized to delete post');
+      }
+
+      await GroupPostService.delete(data.postId, userId);
+
+      io.to(`group_${data.groupId}`).emit('deleted_group_post', {
+        postId: data.postId
+      });
+    } catch (err) {
+      console.error('Error handling deleted_group_post:', err);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log(`Socket disconnected: ${socket.id}`);
+    if (userId) {
+      const count = userConnectionCount.get(userId) || 1;
+      if (count <= 1) {
+        userConnectionCount.delete(userId);
+        activeSockets.delete(userId);
+      } else {
+        userConnectionCount.set(userId, count - 1);
+        activeSockets.get(userId).delete(socket.id);
+      }
+    }
+  });
+
+  socket.on('reconnect_attempt', () => {
+    console.log(`Reconnect attempt by ${socket.id}`);
+    socket.emit('reconnect_status', { attempting: true });
+  });
+}
+
+module.exports = {
+  handleGroupSocket,
+  getActiveSockets: () => activeSockets,
+  getUserConnectionCount: () => userConnectionCount,
+};

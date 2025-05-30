@@ -1,179 +1,160 @@
-const { Server } = require("socket.io");
+// messageSocket.js
 const MessageService = require("../services/messageService");
 const { uploadToS3 } = require("../middleware/upload");
-const { verifyToken } = require("../middleware/authMiddleware.js");
 
-let io = null;
-const userConnectionCount = new Map();
+// Track user connections: userId -> Set of socket IDs
+const userConnections = new Map();
 
-function initSocket(server) {
-  io = new Server(server, {
-    cors: {
-      origin: "*",
-      methods: ["GET", "POST"],
-    },
-    connectionStateRecovery: {
-      maxDisconnectionDuration: 2 * 60 * 1000,
-      skipMiddlewares: true,
+function handleMessageSocket(io, socket) {
+    const userId = socket.user?.id;
+    if (!userId) {
+        console.error("No user ID found for message socket. Disconnecting...");
+        return socket.disconnect();
     }
-  });
 
-  io.on("connection", async (socket) => {
-    console.log("🔌 Socket connected:", socket.id);
+    console.log(`💬 Message Socket connected: ${socket.id}, User ID: ${userId}`);
 
-    // 1. Restore token-based authentication
-    const token = socket.handshake.auth.token;
-    try {
-      const userId = await verifyToken(token);
-      if (!userId) {
-        socket.emit("error", { message: "Invalid token." });
-        return socket.disconnect(true);
-      }
-
-      // 2. Maintain connection count for presence tracking
-      const prevCount = userConnectionCount.get(userId) || 0;
-      userConnectionCount.set(userId, prevCount + 1);
-      socket.data.userId = userId;
-
-      // Join personal room for direct messaging
-      socket.join(userId);
-
-      // Notify about online status changes
-      if (prevCount === 0) {
+    // Add socket to user's connection set
+    if (!userConnections.has(userId)) {
+        userConnections.set(userId, new Set());
+        // Notify others only for first connection
         socket.broadcast.emit("user_online", { userId });
-      }
-
-      // Send initial online status list
-      const onlineUsers = Array.from(userConnectionCount.keys())
-        .filter(id => userConnectionCount.get(id) > 0)
-        .map(id => ({ userId: id }));
-      socket.emit("initial_status", onlineUsers);
-
-      console.log(`✅ Authenticated user ${userId} (${prevCount + 1} connections)`);
-
-    } catch (err) {
-      console.error("Auth error:", err.message);
-      socket.emit("error", { message: "Authentication failed." });
-      socket.disconnect(true);
     }
+    userConnections.get(userId).add(socket.id);
 
-    // 3. Restore message features
+    // Send initial online status to new connection
+    const onlineUsers = Array.from(userConnections.keys()).map(id => ({ userId: id }));
+    socket.emit("initial_status", onlineUsers);
+
+    // Join user's personal room
+    socket.join(userId);
+    console.log(`👥 User ${userId} joined their message room`);
+
+    // Event Handlers
+    socket.on("check_status", (target) => {
+        const targetId = target?.userId || target;
+        socket.emit("user_status", {
+            userId: targetId,
+            isOnline: userConnections.has(targetId)
+        });
+    });
+
     socket.on("send_message", async (data) => {
-      const { senderId, receiverId, text, image } = data;
-      
-      if (!senderId || !receiverId || (!text && !image)) {
-        return socket.emit("error", { message: "Invalid message data." });
-      }
-
-      try {
-        let imageUrl = null;
-        if (image?.base64 && image?.name) {
-          const buffer = Buffer.from(image.base64, "base64");
-          const fileName = `${Date.now()}-${image.name}`;
-          imageUrl = await uploadToS3(buffer, fileName, "social-sync-for-final");
+        const { receiverId, text, image, tempId } = data;
+        
+        if (!receiverId || (!text && !image)) {
+            return socket.emit("message_error", {
+                message: "Invalid message data",
+                tempId
+            });
         }
 
-        const message = await MessageService.createMessage(senderId, receiverId, text, imageUrl);
-        
-        // Deliver to both parties through their personal rooms
-        io.to(receiverId).emit("receive_message", message);
-        io.to(senderId).emit("receive_message", message);
+        try {
+            let imageUrl = null;
+            if (image?.base64 && image.name) {
+                const buffer = Buffer.from(image.base64, "base64");
+                imageUrl = await uploadToS3(
+                    buffer, 
+                    `${Date.now()}-${image.name}`,
+                    "social-sync-for-final"
+                );
+            }
 
-      } catch (err) {
-        console.error("💥 Send message error:", err);
-        socket.emit("error", { message: "Failed to send message." });
-      }
+            const message = await MessageService.createMessage(
+                userId, 
+                receiverId, 
+                text, 
+                imageUrl
+            );
+
+            // Deliver to receiver's room
+            io.to(receiverId).emit("receive_message", message);
+            
+            // Confirm delivery to sender
+            socket.emit("message_delivered", {
+                ...message,
+                tempId  // Echo back for client-side tracking
+            });
+
+        } catch (err) {
+            console.error("💥 Message send error:", err);
+            socket.emit("message_error", {
+                message: "Failed to send message",
+                tempId
+            });
+        }
     });
 
-    socket.on("edit_message", async ({ messageId, newText }) => {
-      if (!messageId || !newText) {
-        return socket.emit("error", { message: "Invalid edit request." });
-      }
+    socket.on("edit_message", async ({ messageId, newText, tempId }) => {
+        if (!messageId || !newText) {
+            return socket.emit("message_error", {
+                message: "Invalid edit request",
+                tempId
+            });
+        }
 
-      try {
-        const userId = socket.data.userId;
-        const editedMessage = await MessageService.editMessage(messageId, userId, newText);
-        
-        // Notify both participants
-        io.to(editedMessage.senderId).emit("message_edited", editedMessage);
-        io.to(editedMessage.receiverId).emit("message_edited", editedMessage);
-        
-      } catch (err) {
-        console.error("💥 Edit message error:", err);
-        socket.emit("error", { message: "Failed to edit message." });
-      }
+        try {
+            const editedMessage = await MessageService.editMessage(
+                messageId, 
+                userId, 
+                newText
+            );
+
+            // Notify both parties
+            io.to(editedMessage.senderId).emit("message_edited", editedMessage);
+            io.to(editedMessage.receiverId).emit("message_edited", editedMessage);
+
+        } catch (err) {
+            console.error("💥 Message edit error:", err);
+            socket.emit("message_error", {
+                message: "Failed to edit message",
+                tempId
+            });
+        }
     });
 
-    socket.on("delete_message", async ({ messageId }) => {
-      if (!messageId) {
-        return socket.emit("error", { message: "Message ID required." });
-      }
+    socket.on("delete_message", async ({ messageId, tempId }) => {
+        if (!messageId) {
+            return socket.emit("message_error", {
+                message: "Message ID required",
+                tempId
+            });
+        }
 
-      try {
-        const userId = socket.data.userId;
-        const deletedMessage = await MessageService.deleteMessage(messageId, userId);
-        
-        // Notify both participants
-        io.to(deletedMessage.senderId).emit("message_deleted", { messageId });
-        io.to(deletedMessage.receiverId).emit("message_deleted", { messageId });
-        
-      } catch (err) {
-        console.error("💥 Delete message error:", err);
-        socket.emit("error", { message: "Failed to delete message." });
-      }
+        try {
+            const deleted = await MessageService.deleteMessage(messageId, userId);
+            
+            // Notify both parties
+            io.to(deleted.senderId).emit("message_deleted", { 
+                messageId,
+                tempId
+            });
+            io.to(deleted.receiverId).emit("message_deleted", { 
+                messageId,
+                tempId
+            });
+
+        } catch (err) {
+            console.error("💥 Message delete error:", err);
+            socket.emit("message_error", {
+                message: "Failed to delete message",
+                tempId
+            });
+        }
     });
 
-    // 4. Add group features (non-conflicting)
-    socket.on("join_group", (groupId) => {
-      if (groupId) {
-        const roomName = `group_${groupId}`;
-        socket.join(roomName);
-        console.log(`👥 User ${socket.data.userId} joined group ${groupId}`);
-      }
-    });
-
-    socket.on("leave_group", (groupId) => {
-      if (groupId) {
-        const roomName = `group_${groupId}`;
-        socket.leave(roomName);
-        console.log(`👋 User ${socket.data.userId} left group ${groupId}`);
-      }
-    });
-
-    // 5. Restore presence features
-    socket.on("check_status", (targetUserId) => {
-      const isOnline = userConnectionCount.has(targetUserId) && 
-                      userConnectionCount.get(targetUserId) > 0;
-      socket.emit("user_status", { userId: targetUserId, isOnline });
-    });
-
-    // 6. Restore heartbeat
-    socket.on("ping", () => {
-      socket.emit("pong");
-    });
-
-    // 7. Handle disconnection
     socket.on("disconnect", () => {
-      const userId = socket.data.userId;
-      if (userId) {
-        const count = userConnectionCount.get(userId) || 1;
-        const newCount = Math.max(count - 1, 0);
-        
-        if (newCount === 0) {
-          userConnectionCount.delete(userId);
-          socket.broadcast.emit("user_offline", { userId });
-        } else {
-          userConnectionCount.set(userId, newCount);
+        if (userId && userConnections.has(userId)) {
+            const sockets = userConnections.get(userId);
+            sockets.delete(socket.id);
+            
+            if (sockets.size === 0) {
+                userConnections.delete(userId);
+                socket.broadcast.emit("user_offline", { userId });
+            }
         }
-        console.log(`🚪 User ${userId} disconnected (${newCount} connections remain)`);
-      }
+        console.log(`💬 Message socket disconnected: ${socket.id}`);
     });
-  });
 }
 
-function getIO() {
-  if (!io) throw new Error("Socket.io not initialized!");
-  return io;
-}
-
-module.exports = { initSocket, getIO };
+module.exports = handleMessageSocket;
