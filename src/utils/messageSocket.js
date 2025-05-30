@@ -1,6 +1,7 @@
 const { Server } = require("socket.io");
 const MessageService = require("../services/messageService");
 const { uploadToS3 } = require("../middleware/upload");
+// Assuming you have a method to get user by ID
 
 let io = null;
 const userConnectionCount = new Map();

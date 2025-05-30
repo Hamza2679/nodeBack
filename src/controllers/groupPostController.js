@@ -4,6 +4,7 @@ const { uploadToS3 } = require("../services/uploadService");
 const PostService = require("../services/postService");
 const GroupService = require("../services/groupService");
 const User = require("../models/User"); // Make sure to import your User model
+const getById =require("../services/UserService"); 
 
 // Enhanced logging helper
 function logEvent(event, data) {
@@ -39,7 +40,7 @@ exports.createGroupPost = async (req, res) => {
     logEvent("CREATE_POST_DB_SUCCESS", { postId: newPost.id });
 
     // Get user details for socket emission
-    const user = await User.findById(user_id);
+    const user = await getById.getUserById(user_id);
     if (!user) {
       logEvent("USER_NOT_FOUND", { user_id });
       return res.status(404).json({ error: "User not found" });
@@ -152,7 +153,7 @@ exports.updateGroupPost = async (req, res) => {
     const updatedPost = await GroupPostService.update(postId, userId, text, imageUrl);
     
     // Get user details for socket emission
-    const user = await User.findById(userId);
+    const user = await getById.getUserById(userId);
     if (!user) {
       logEvent("USER_NOT_FOUND_UPDATE", { userId });
       return res.status(404).json({ error: "User not found" });
