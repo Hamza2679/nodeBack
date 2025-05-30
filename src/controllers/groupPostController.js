@@ -23,8 +23,9 @@ exports.createGroupPost = async (req, res) => {
         const newPost = await GroupPostService.create(group_id, user_id, text, imageUrl);
         console.log("Post created:", newPost);
         // Get io instance and emit
-        const io = getIO();
-        console.log("Emitting new group post to group:", group_id);
+        // ✅ Get io instance from Express app
+        const io = req.app.get("io");
+        console.log("Emitting new group post to socket");
         io.to(`group_${group_id}`).emit("new_group_post", {
             ...newPost,
             user: {
@@ -37,7 +38,7 @@ exports.createGroupPost = async (req, res) => {
         console.log("New group post emitted to socket");
         console.log("New post data:", newPost);
         console.log(res);
-        res.status(201).json({ message: "Post created successfully", post: newPost });
+  res.status(201).json({ message: "Post created successfully", post: newPost });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -53,7 +54,7 @@ exports.createReply = async (req, res) => {
         const reply = await GroupPostReplyService.create(postId, userId, text);
 
         // Emit real-time update
-        const io = getIO();
+        const io = req.app.get("io");
         io.to(`post_${postId}`).emit("new_reply", {
             postId,
             reply: {
@@ -121,7 +122,7 @@ exports.deleteGroupPost = async (req, res) => {
             return res.status(403).json({ error: "Unauthorized or post not found" });
         }
         
-        const io = getIO(); // Get io instance here
+       const io = req.app.get("io");
         io.to(`group_${result.group_id}`).emit("deleted_group_post", {
             postId: id,
             groupId: result.group_id,
@@ -160,8 +161,7 @@ exports.updateGroupPost = async (req, res) => {
 
         const updatedPost = await GroupPostService.update(postId, userId, text, imageUrl);
         
-        // Get io instance and emit
-        const io = getIO();
+        const io = req.app.get("io");
         io.to(`group_${updatedPost.group_id}`).emit("updated_group_post", {
             ...updatedPost,
             user: {

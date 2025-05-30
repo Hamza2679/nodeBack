@@ -1,62 +1,85 @@
 const { Server } = require("socket.io");
+const jwt = require("jsonwebtoken");
 const MessageService = require("../services/messageService");
 const { uploadToS3 } = require("../middleware/upload");
 const { verifyToken } = require("../middleware/authMiddleware.js");
-const users = new Map();
 
 let io = null;
+const userConnectionCount = new Map();
 
 function initSocket(server) {
-  io = new Server(server, {
-    cors: {
-      origin: "*",
-      methods: ["GET", "POST"],
-    },
-  });
-
-  io.on("connection", async (socket) => {
-    console.log("🔌 Socket connected:", socket.id);
-  
-    const token = socket.handshake.auth.token;
-  
-    try {
-      const userId = await verifyToken(token);
-      if (!userId) {
-        socket.emit("error", { message: "Invalid token." });
-        return socket.disconnect(true);
-      }
-  
-      users.set(userId, socket.id);
-      socket.userId = userId;
-  
-      console.log(`✅ Registered user ${userId} with socket ${socket.id}`);
-      socket.broadcast.emit("user_online", userId);
-      const onlineUsers = Array.from(users.keys()).map(id => ({ userId: id }));
-  socket.emit("initial_status", onlineUsers);
-      
-    } catch (err) {
-      console.error("Auth error:", err.message);
-      socket.emit("error", { message: "Authentication failed." });
-      socket.disconnect(true);
-    }
-   // Add new handler for status checks
-   socket.on("check_status", (targetUserId) => {
-    // Handle both object and string formats
-    const userIdToCheck = targetUserId?.userId || targetUserId;
-    const isOnline = users.has(userIdToCheck);
-    
-    socket.emit("user_status", {
-      userId: userIdToCheck,
-      isOnline: isOnline
+    io = new Server(server, {
+        cors: {
+            origin: "*",
+            methods: ["GET", "POST"],
+            credentials: true
+        }
     });
-  });
-  
- 
-  
 
-    // ... rest of your event listeners like send_message, edit_message, etc.
-  
-    socket.on("send_message", async (data) => {
+    // Authentication Middleware
+    io.use(async (socket, next) => {
+        const token = socket.handshake.auth.token;
+        if (!token) return next(new Error("Authentication error"));
+
+        try {
+            const userId = await verifyToken(token);
+            if (!userId) return next(new Error("Invalid token"));
+            socket.userId = userId;
+            next();
+        } catch (err) {
+            next(new Error("Authentication failed"));
+        }
+    });
+
+    io.on("connection", (socket) => {
+        console.log(`🔌 User ${socket.userId} connected: ${socket.id}`);
+
+        // Join personal room
+        socket.join(socket.userId);
+        
+        // Online status tracking
+        const prevCount = userConnectionCount.get(socket.userId) || 0;
+        userConnectionCount.set(socket.userId, prevCount + 1);
+        
+        if (prevCount === 0) {
+            socket.broadcast.emit("user_online", { userId: socket.userId });
+        }
+        
+        const onlineUsers = Array.from(userConnectionCount.keys())
+            .filter(id => userConnectionCount.get(id) > 0)
+            .map(id => ({ userId: id }));
+        socket.emit("initial_status", onlineUsers);
+
+        // Status check handler
+        socket.on("check_status", (targetUserId) => {
+            const userIdToCheck = targetUserId?.userId || targetUserId;
+            const isOnline = userConnectionCount.has(userIdToCheck) && 
+                             userConnectionCount.get(userIdToCheck) > 0;
+            socket.emit("user_status", {
+                userId: userIdToCheck,
+                isOnline: isOnline
+            });
+        });
+
+        // Group room handlers
+        socket.on("join_group", (groupId) => {
+            socket.join(`group_${groupId}`);
+            console.log(`📥 User ${socket.userId} joined group_${groupId}`);
+        });
+
+        socket.on("leave_group", (groupId) => {
+            socket.leave(`group_${groupId}`);
+            console.log(`📤 User ${socket.userId} left group_${groupId}`);
+        });
+
+        socket.on("join_post", (postId) => {
+            socket.join(`post_${postId}`);
+            console.log(`📥 User ${socket.userId} joined post_${postId}`);
+        });
+
+        // Message handlers
+        socket.on("send_message", async (data) => {
+          socket.on("send_message", async (data) => {
       const { senderId, receiverId, text, image } = data;
     
       if (!senderId || !receiverId || (!text && !image)) {
@@ -85,33 +108,10 @@ function initSocket(server) {
         socket.emit("error", { message: "Failed to send message." });
       }
     });
-    
+        });
 
-    // ✅ Ping-pong heartbeat
-    socket.on("ping", () => {
-      socket.emit("pong");
-    });
-
-    socket.on('join', ({ userId }) => {
-      if (userId) {
-        socket.join(userId);
-        console.log(`👥 User ${userId} joined their personal room`);
-      }
-    });
-    
-
-    socket.on("disconnect", () => {
-      const userId = socket.userId;
-      if (userId) {
-        users.delete(userId);
-        // Send as object
-        socket.broadcast.emit("user_offline", { userId: userId });
-      }
-    });
-    
-    // 🔄 Edit Message
-socket.on("edit_message", async ({ messageId, newText }) => {
-  if (!messageId || !newText) {
+        socket.on("edit_message", async ({ messageId, newText }) => {
+            if (!messageId || !newText) {
     return socket.emit("error", { message: "Invalid edit request." });
   }
 
@@ -130,9 +130,8 @@ socket.on("edit_message", async ({ messageId, newText }) => {
   }
 });
 
-// ❌ Delete Message
-socket.on("delete_message", async ({ messageId }) => {
-  if (!messageId) {
+        socket.on("delete_message", async ({ messageId }) => {
+            if (!messageId) {
     return socket.emit("error", { message: "Message ID required." });
   }
 
@@ -151,8 +150,23 @@ socket.on("delete_message", async ({ messageId }) => {
   }
 });
 
-  });
 
+        // Disconnection handler
+        socket.on("disconnect", () => {
+            const count = userConnectionCount.get(socket.userId) || 1;
+            if (count <= 1) {
+                userConnectionCount.delete(socket.userId);
+                socket.broadcast.emit("user_offline", { userId: socket.userId });
+            } else {
+                userConnectionCount.set(socket.userId, count - 1);
+            }
+        });
+    });
 }
 
-module.exports = { initSocket };
+function getIO() {
+    if (!io) throw new Error("Socket.io not initialized!");
+    return io;
+}
+
+module.exports = { initSocket, getIO };
