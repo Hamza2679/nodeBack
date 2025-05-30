@@ -1,7 +1,7 @@
 // initSocket.js
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
-const { handleMessageSocket } = require('./messageSocket');
+const handleMessageSocket = require('./messageSocket');
 const { handleGroupSocket } = require('./socket');
 
 function initSocket(server) {
