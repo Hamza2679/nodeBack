@@ -3,7 +3,7 @@ const jwt = require("jsonwebtoken");
 const MessageService = require("../services/messageService");
 const { uploadToS3 } = require("../middleware/upload");
 const { verifyToken } = require("../middleware/authMiddleware.js");
-const User = require("../models/user");
+const User = require("../models/User.js");
 
 let io = null;
 const userConnectionCount = new Map();
