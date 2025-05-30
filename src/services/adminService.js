@@ -262,32 +262,50 @@ static async updateUserRole(userId, newRole) {
     }
   }
   
-  static async deleteUser(userId) {
-    const client = await pool.connect();
-    try {
-      // First check if user exists
-      const userRes = await client.query('SELECT id FROM users WHERE id = $1', [userId]);
-      if (userRes.rows.length === 0) throw new Error("User not found");
-  
-      // In a real app, you might want to soft delete or handle dependencies
-      await client.query('BEGIN');
-      
-      // Example: Delete user's posts, comments, etc. first
-      // This is just a basic example - adjust based on your schema
-      await client.query('DELETE FROM posts WHERE userid = $1', [userId]);
-      await client.query('DELETE FROM comments WHERE userid = $1', [userId]);
-      
-      // Then delete the user
-      await client.query('DELETE FROM users WHERE id = $1', [userId]);
-      
-      await client.query('COMMIT');
-    } catch (err) {
-      await client.query('ROLLBACK');
-      throw err;
-    } finally {
-      client.release();
+// services/adminService.js
+
+static async deleteUser(userId) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1) Ensure user exists and is active
+    const userRes = await client.query(
+      'SELECT id FROM users WHERE id = $1 AND is_active = TRUE',
+      [userId]
+    );
+    if (userRes.rowCount === 0) {
+      throw new Error('User not found or already deactivated');
     }
+
+    // 2) Delete any reports they filed or were the target of
+    await client.query(
+      `DELETE FROM user_reports
+       WHERE reporter_id = $1
+          OR reported_id = $1`,
+      [userId]
+    );
+
+    // 3) Soft‐delete the user
+    const result = await client.query(
+      `UPDATE users
+         SET is_active = FALSE
+       WHERE id = $1
+       RETURNING id, first_name, last_name, email, role`,
+      [userId]
+    );
+
+    await client.query('COMMIT');
+    return result.rows[0];
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
+}
+
+
 
   static async sendPushNotification({ title, message, userIds = [], segments = [] }) {
     try {
@@ -370,6 +388,26 @@ static async updateUserRole(userId, newRole) {
       return { logs: lRes.rows, total, page, pages: Math.ceil(total/limit) };
     } finally { client.release(); }
   }
+
+  // services/adminService.js
+static async deactivateUser(userId) {
+  const client = await pool.connect();
+  try {
+    const result = await client.query(
+      `UPDATE users
+         SET is_active = FALSE
+       WHERE id = $1
+       RETURNING id, first_name, last_name, email, role;`,
+      [userId]
+    );
+    if (result.rowCount === 0) throw new Error('User not found');
+    return result.rows[0];
+  } finally {
+    client.release();
+  }
 }
+
+}
+
 
 module.exports = AdminService;
