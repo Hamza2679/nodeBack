@@ -565,3 +565,43 @@ module.exports = router;
  *       scheme: bearer
  *       bearerFormat: JWT
  */
+
+// Add this to authRoutes.js after other routes
+/**
+ * @swagger
+ * /api/auth/change-password:
+ *   post:
+ *     summary: Change user password
+ *     description: Allows authenticated users to change their password after verifying current password
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - currentPassword
+ *               - newPassword
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *                 format: password
+ *                 example: oldpassword123
+ *               newPassword:
+ *                 type: string
+ *                 format: password
+ *                 example: newsecurepassword
+ *     responses:
+ *       200:
+ *         description: Password changed successfully
+ *       400:
+ *         description: Current password is incorrect or new password is invalid
+ *       401:
+ *         description: Unauthorized (invalid/missing token)
+ *       500:
+ *         description: Internal server error
+ */
+router.post("/change-password", authenticateToken, authController.changePassword);

@@ -10,12 +10,15 @@ class StudentService {
 
         const client = await pool.connect();
         try {
+            // Normalize university ID to lowercase before saving
+            const normalizedUniversityId = universityId.toLowerCase();
+
             const result = await client.query(
                 `INSERT INTO students 
                 (first_name, middle_name, last_name, email, phone_number, university_id, profile_picture_url) 
                 VALUES ($1, $2, $3, $4, $5, $6, $7)
                 RETURNING id, first_name, middle_name, last_name, email, phone_number, university_id, profile_picture_url, created_at`,
-                [firstName, middleName, lastName, email, phoneNumber, universityId, profilePictureUrl]
+                [firstName, middleName, lastName, email, phoneNumber, normalizedUniversityId, profilePictureUrl]
             );
 
             const row = result.rows[0];
@@ -43,7 +46,7 @@ class StudentService {
             const result = await client.query(
                 `SELECT id, first_name, middle_name, last_name, email, phone_number, university_id, profile_picture_url, created_at
                  FROM students
-                 WHERE university_id = $1`,
+                 WHERE LOWER(university_id) = LOWER($1)`, // case-insensitive search
                 [universityId]
             );
 

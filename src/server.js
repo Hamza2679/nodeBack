@@ -20,12 +20,9 @@ const groupPostReportRoutes = require('./routes/groupPostReportRoutes');
 const db = require("./config/db");
 const swaggerDocs = require("../swagger");
 
-const { initSocket } = require("./utils/initS");
-
 dotenv.config();
 const app = express();
-const server = http.createServer(app); 
-initSocket(server);
+const server = http.createServer(app);
 
 const allowedOrigins = ["http://127.0.0.1:5500", "http://localhost:2919"];
 app.use(cors({

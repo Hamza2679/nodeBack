@@ -37,34 +37,18 @@ exports.sendMessage = async (req, res) => {
     }
 };
 
-/**
- * Get conversation between two users
- */
 exports.getConversation = async (req, res) => {
     try {
         const userId = req.user.userId;
         const otherUserId = req.params.userId;
 
-        const limit = parseInt(req.query.limit) || 12;
-        const offset = parseInt(req.query.offset) || 0;
-
         if (!otherUserId) {
             return res.status(400).json({ error: "User ID is required" });
         }
 
-        const { messages, total } = await MessageService.getConversation(userId, otherUserId, limit, offset);
+        const { messages } = await MessageService.getConversation(userId, otherUserId);
 
-        const hasNextPage = offset + messages.length < total;
-
-        res.status(200).json({
-            messages,
-            pagination: {
-                total,
-                limit,
-                offset,
-                hasNextPage
-            }
-        });
+        res.status(200).json({ messages });
     } catch (error) {
         console.error("Get Conversation Error:", error);
         res.status(500).json({ error: "Internal Server Error" });
