@@ -8,49 +8,53 @@ let io = null;
 
 function initSocket(server) {
   io = new Server(server, {
-    cors: {
-      origin: "*",
-      methods: ["GET", "POST"],
-    },
+    cors: { origin: "*", methods: ["GET", "POST"] },
+    connectionStateRecovery: true // Add connection recovery
   });
 
   io.on("connection", async (socket) => {
     console.log("🔌 Socket connected:", socket.id);
-  
-    const token = socket.handshake.auth.token;
-  
+
     try {
+      // Authentication
+      const token = socket.handshake.auth.token;
       const userId = await verifyToken(token);
       if (!userId) {
         socket.emit("error", { message: "Invalid token." });
         return socket.disconnect(true);
       }
-  
+
+      // User management
       users.set(userId, socket.id);
       socket.userId = userId;
-  
+      socket.join(`user_${userId}`); // Create personal room
+
       console.log(`✅ Registered user ${userId} with socket ${socket.id}`);
-      socket.broadcast.emit("user_online", userId);
-      const onlineUsers = Array.from(users.keys()).map(id => ({ userId: id }));
-  socket.emit("initial_status", onlineUsers);
       
+      // Notify others about new online user
+      socket.broadcast.emit("user_online", { userId });
+
+      // Send initial online statuses to new connection
+      const onlineUsers = Array.from(users.keys()).map(id => ({ 
+        userId: id,
+        isOnline: true 
+      }));
+      socket.emit("initial_status", onlineUsers);
+
     } catch (err) {
       console.error("Auth error:", err.message);
       socket.emit("error", { message: "Authentication failed." });
       socket.disconnect(true);
     }
-   // Add new handler for status checks
-   socket.on("check_status", (targetUserId) => {
-    // Handle both object and string formats
-    const userIdToCheck = targetUserId?.userId || targetUserId;
-    const isOnline = users.has(userIdToCheck);
-    
-    socket.emit("user_status", {
-      userId: userIdToCheck,
-      isOnline: isOnline
-    });
-  });
-  
+
+    // Unified status check handler
+    socket.on("check_status", (targetUserId) => {
+      const userIdToCheck = targetUserId?.userId || targetUserId;
+      socket.emit("user_status", {
+        userId: userIdToCheck,
+        isOnline: users.has(userIdToCheck)
+      });
+    });  
  
   
 
@@ -100,15 +104,7 @@ function initSocket(server) {
     });
     
 
-    socket.on("disconnect", () => {
-      const userId = socket.userId;
-      if (userId) {
-        users.delete(userId);
-        // Send as object
-        socket.broadcast.emit("user_offline", { userId: userId });
-      }
-    });
-    
+   
     // 🔄 Edit Message
 socket.on("edit_message", async ({ messageId, newText }) => {
   if (!messageId || !newText) {
@@ -150,9 +146,13 @@ socket.on("delete_message", async ({ messageId }) => {
     socket.emit("error", { message: "Failed to delete message." });
   }
 });
-
+socket.on("disconnect", () => {
+      const userId = socket.userId;
+      if (userId) {
+        users.delete(userId);
+        socket.broadcast.emit("user_offline", { userId });
+      }
+    });
   });
-
 }
-
 module.exports = { initSocket };

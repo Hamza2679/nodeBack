@@ -5,7 +5,7 @@ const GroupService = require("../services/groupService");
 const User = require("../models/User"); // Make sure to import your User model
 const getById =require("../services/UserService");
 // Add this at the top of your controller
-const { getIO } = require('../utils/socket'); // Adjust path to your socket file
+// const { getIO } = require('../utils/socket'); // Adjust path to your socket file
 
 // Enhanced logging helper
 function logEvent(event, data) {
@@ -58,7 +58,7 @@ exports.createGroupPost = async (req, res) => {
       }
     };
 
-    const io = getIO();
+    // const io = getIO();
     const roomName = `group_${group_id}`;
     
     logEvent("EMIT_NEW_GROUP_POST", {
@@ -68,10 +68,10 @@ exports.createGroupPost = async (req, res) => {
       userId: user_id
     });
     
-    io.to(roomName).emit("new_group_post", {
-      post: postWithUser,
-      groupId: group_id
-    });
+    // io.to(roomName).emit("new_group_post", {
+    //   post: postWithUser,
+    //   groupId: group_id
+    // });
     
     res.status(201).json({ message: "Post created successfully", post: newPost });
   } catch (error) {
@@ -93,8 +93,8 @@ exports.deleteGroupPost = async (req, res) => {
       return res.status(404).json({ error: "Post not found" });
     }
     
-    const io = getIO();
-    const roomName = `group_${deletedPost.group_id}`;
+    // const io = getIO();
+    // const roomName = `group_${deletedPost.group_id}`;
     
     logEvent("EMIT_DELETED_GROUP_POST", {
       room: roomName,
@@ -102,10 +102,10 @@ exports.deleteGroupPost = async (req, res) => {
       groupId: deletedPost.group_id
     });
     
-    io.to(roomName).emit("deleted_group_post", {
-      postId: id,
-      groupId: deletedPost.group_id
-    });
+    // io.to(roomName).emit("deleted_group_post", {
+    //   postId: id,
+    //   groupId: deletedPost.group_id
+    // });
     
     logEvent("DELETE_GROUP_POST_SUCCESS", { postId: id });
     res.status(200).json({ message: "Group post deleted successfully" });
@@ -171,7 +171,7 @@ exports.updateGroupPost = async (req, res) => {
       }
     };
 
-    const io = getIO();
+    // const io = getIO();
     const roomName = `group_${updatedPost.group_id}`;
     
     logEvent("EMIT_UPDATED_GROUP_POST", {
