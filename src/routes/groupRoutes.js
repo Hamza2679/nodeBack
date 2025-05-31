@@ -159,22 +159,89 @@ router.get("/:id", authenticateToken, getGroupById);
 
 router.put("/edit/:GroupId", authenticateToken, upload.single("image"), updateGroup);
 
+/**
+ * @swagger
+ * /api/groups/{groupId}/join:
+ *   post:
+ *     summary: Join a group
+ *     tags: [Groups]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Joined group successfully
+ *       400:
+ *         description: Already a member
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Group not found
+ */
 router.post('/:groupId/join', authenticateToken, joinGroup);
-router.delete('/:groupId/leave', authenticateToken, leaveGroup);
-
-
-router.get('/:id/members', authenticateToken, getGroupMembers);
-router.delete("/delete/:groupId", authenticateToken, deleteGroup);
-router.post('/:groupId/joinUsAdmin', authenticateToken, joinGroupUsAdmin);
-
-router.get('/:id/admin', authenticateToken, isAdmin);
-
 
 /**
  * @swagger
- * /api/groups/{id}/members:
+ * /api/groups/{groupId}/joinUsAdmin:
+ *   post:
+ *     summary: Join a group as admin
+ *     tags: [Groups]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Joined group as admin successfully
+ *       400:
+ *         description: Already a member
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Group not found
+ */
+router.post('/:groupId/joinUsAdmin', authenticateToken, joinGroupUsAdmin);
+
+/**
+ * @swagger
+ * /api/groups/{groupId}/leave:
+ *   delete:
+ *     summary: Leave a group
+ *     tags: [Groups]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Left group successfully
+ *       400:
+ *         description: Not a member
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Group not found
+ */
+router.delete('/:groupId/leave', authenticateToken, leaveGroup);
+
+/**
+ * @swagger
+ * /api/groups/{id}/admin:
  *   get:
- *     summary: Get members of a group
+ *     summary: Check if current user is admin of the group
  *     tags: [Groups]
  *     security:
  *       - BearerAuth: []
@@ -184,80 +251,57 @@ router.get('/:id/admin', authenticateToken, isAdmin);
  *         required: true
  *         schema:
  *           type: integer
- *         example: 1
  *     responses:
  *       200:
- *         description: List of group members
+ *         description: Admin status
+ *       401:
+ *         description: Unauthorized
  *       404:
  *         description: Group not found
- *       401:
- *         description: Unauthorized
  */
+router.get('/:id/admin', authenticateToken, isAdmin);
 
-
-// Report a group
 /**
  * @swagger
- * /api/groups/{groupId}/report:
- *   post:
- *     summary: Report a group
- *     tags: [Groups]
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: groupId
- *         required: true
- *         schema:
- *           type: integer
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - reason
- *             properties:
- *               reason:
- *                 type: string
- *     responses:
- *       201:
- *         description: Group reported successfully
- *       400:
- *         description: Missing reason or invalid request
- *       401:
- *         description: Unauthorized
- */
-router.post('/:groupId/report', authenticateToken, reportGroup);
-
-// Remove a member
-/**
- * @swagger
- * /api/groups/{groupId}/members/{userId}:
+ * /api/groups/delete/{groupId}:
  *   delete:
- *     summary: Remove a member from the group (Owner only)
+ *     summary: Delete a group (owner only)
  *     tags: [Groups]
  *     security:
  *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: groupId
- *         required: true
- *         schema:
- *           type: integer
- *       - in: path
- *         name: userId
  *         required: true
  *         schema:
  *           type: integer
  *     responses:
  *       200:
- *         description: Member removed successfully
+ *         description: Group deleted successfully
+ *       401:
+ *         description: Unauthorized
  *       403:
- *         description: Unauthorized action
+ *         description: Not authorized to delete this group
  *       404:
- *         description: Group or user not found
+ *         description: Group not found
+ */
+router.delete("/delete/:groupId", authenticateToken, deleteGroup);
+
+/**
+ * @swagger
+ * /api/groups/admin/groups/reported:
+ *   get:
+ *     summary: Get all reported groups (admin only)
+ *     tags: [Groups]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of reported groups
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Access denied
  */
 router.get(
   '/admin/groups/reported',
@@ -265,7 +309,31 @@ router.get(
   authorizeRoles(['admin']),
   getReportedGroups
 );
-router.delete('/:groupId/members/:userId', authenticateToken, removeMember);
+
+/**
+ * @swagger
+ * /api/groups/admin/groups/{groupId}:
+ *   delete:
+ *     summary: Delete a group and its reports (admin only)
+ *     tags: [Groups]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Group and its reports deleted
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Access denied
+ *       404:
+ *         description: Group not found
+ */
 router.delete(
   '/admin/groups/:groupId',
   authenticateToken,

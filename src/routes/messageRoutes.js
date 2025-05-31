@@ -181,9 +181,9 @@ router.delete("/:messageId", authenticateToken, deleteMessage);
 
 /**
  * @swagger
- * /api/messages/conversation/{userId}/paginated:
+ * /api/messages/conversation/{receiverId}/paginated:
  *   get:
- *     summary: Get paginated conversation with a user
+ *     summary: Get paginated messages between users
  *     description: Retrieve a paginated list of messages between the authenticated user and another user.
  *     tags:
  *       - Messages
@@ -191,11 +191,11 @@ router.delete("/:messageId", authenticateToken, deleteMessage);
  *       - BearerAuth: []
  *     parameters:
  *       - in: path
- *         name: userId
+ *         name: receiverId
  *         required: true
  *         schema:
  *           type: integer
- *         example: 123
+ *         description: The ID of the other user in the conversation
  *       - in: query
  *         name: limit
  *         required: false

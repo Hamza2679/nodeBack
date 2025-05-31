@@ -222,40 +222,256 @@ router.put(
   eventController.updateEvent
 );
 
+/**
+ * @swagger
+ * /api/events/{eventId}/rsvp:
+ *   post:
+ *     summary: RSVP to an event
+ *     description: RSVP as a user to a specific event.
+ *     tags: [Events]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: eventId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Event ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [going, interested, not_going]
+ *                 example: going
+ *     responses:
+ *       200:
+ *         description: RSVP successful
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Event not found
+ */
 router.post(
   '/:eventId/rsvp',
   authenticateToken,
   rsvpController.rsvp
 );
+
+/**
+ * @swagger
+ * /api/events/{eventId}/rsvps:
+ *   get:
+ *     summary: List RSVPs for an event
+ *     description: Retrieve all RSVPs for a specific event.
+ *     tags: [Events]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: eventId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Event ID
+ *     responses:
+ *       200:
+ *         description: List of RSVPs
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Event not found
+ */
 router.get(
   '/:eventId/rsvps',
   authenticateToken,
   rsvpController.listForEvent
 );
+
+/**
+ * @swagger
+ * /api/events/{eventId}/rsvp:
+ *   get:
+ *     summary: Get my RSVP for an event
+ *     description: Retrieve the current user's RSVP for a specific event.
+ *     tags: [Events]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: eventId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Event ID
+ *     responses:
+ *       200:
+ *         description: RSVP details
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: RSVP not found
+ */
 router.get(
   '/:eventId/rsvp',
   authenticateToken,
   rsvpController.getMyRsvp
 );
+
+/**
+ * @swagger
+ * /api/events/{eventId}/rsvp:
+ *   put:
+ *     summary: Update my RSVP for an event
+ *     description: Update the current user's RSVP for a specific event.
+ *     tags: [Events]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: eventId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Event ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [going, interested, not_going]
+ *                 example: interested
+ *     responses:
+ *       200:
+ *         description: RSVP updated
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: RSVP not found
+ */
 router.put(
   '/:eventId/rsvp',
   authenticateToken,
   rsvpController.update
 );
+
+/**
+ * @swagger
+ * /api/events/{eventId}/rsvp:
+ *   delete:
+ *     summary: Remove my RSVP for an event
+ *     description: Remove the current user's RSVP for a specific event.
+ *     tags: [Events]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: eventId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Event ID
+ *     responses:
+ *       200:
+ *         description: RSVP removed
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: RSVP not found
+ */
 router.delete(
   '/:eventId/rsvp',
   authenticateToken,
   rsvpController.remove
 );
 
-// at the bottom, after your other RSVPs routes:
+/**
+ * @swagger
+ * /api/events/{eventId}/attendees:
+ *   get:
+ *     summary: List event attendees
+ *     description: Retrieve a list of users attending a specific event.
+ *     tags: [Events]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: eventId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Event ID
+ *     responses:
+ *       200:
+ *         description: List of attendees
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Event not found
+ */
 router.get(
   '/:eventId/attendees',
   authenticateToken,
   rsvpController.listAttendees
 );
-router.post('/', authenticateToken, eventController.createEvent);
+
+/**
+ * @swagger
+ * /api/events/{id}/online-link:
+ *   get:
+ *     summary: Get online event link
+ *     description: Retrieve the online meeting link for an event (if available and visible).
+ *     tags: [Events]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Event ID
+ *     responses:
+ *       200:
+ *         description: Online link retrieved
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Event or link not found
+ */
 router.get('/:id/online-link', authenticateToken, eventController.getOnlineLink);
+
+/**
+ * @swagger
+ * /api/events/group/{groupId}:
+ *   get:
+ *     summary: Get events by group
+ *     description: Retrieve all events for a specific group.
+ *     tags: [Events]
+ *     parameters:
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Group ID
+ *     responses:
+ *       200:
+ *         description: List of group events
+ *       404:
+ *         description: No events found for this group
+ */
 router.get('/group/:groupId', eventController.getEventsByGroup);
 router.post("/:eventId/comments", authenticateToken, eventController.addCommentToEvent);
 router.get("/:eventId/comments", authenticateToken, eventController.getCommentsByEvent);
