@@ -5,7 +5,7 @@ const GroupService = require("../services/groupService");
 const User = require("../models/User"); // Make sure to import your User model
 const getById =require("../services/UserService");
 // Add this at the top of your controller
-const { getIO } = require('../utils/messageSocket'); // Adjust path to your socket file
+const { getIO } = require('../utils/socket'); // Adjust path to your socket file
 
 // Enhanced logging helper
 function logEvent(event, data) {
