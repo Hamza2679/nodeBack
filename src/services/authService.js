@@ -414,3 +414,41 @@ exports.completeSignup = async (universityId, password, firstName, lastName, ema
             client.release();
         }
     };
+
+
+    // Add this to authService.js
+exports.changePassword = async (userId, currentPassword, newPassword) => {
+    const client = await pool.connect();
+    try {
+        // 1. Get user's current password
+        const userResult = await client.query(
+            'SELECT password FROM users WHERE id = $1',
+            [userId]
+        );
+        
+        if (userResult.rows.length === 0) {
+            throw new Error('User not found');
+        }
+
+        const user = userResult.rows[0];
+        
+        // 2. Verify current password
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) {
+            throw new Error('Current password is incorrect');
+        }
+
+        // 3. Hash and update to new password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+        
+        await client.query(
+            'UPDATE users SET password = $1 WHERE id = $2',
+            [hashedPassword, userId]
+        );
+
+        return { message: 'Password changed successfully' };
+    } finally {
+        client.release();
+    }
+};
