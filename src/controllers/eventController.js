@@ -1,4 +1,5 @@
 const EventService = require("../services/eventService");
+const CommentService = require("../services/commentService");
 const { uploadToS3 } = require("../services/uploadService");
 require("dotenv").config();
 
@@ -246,4 +247,41 @@ exports.getOnlineLink = async (req, res) => {
         console.error("Get Online Link Error:", error);
         res.status(500).json({ error: "Internal Server Error" });
     }
+};
+
+
+// POST   /events/:eventId/comments
+exports.addCommentToEvent = async (req, res) => {
+  try {
+    const userId = req.user?.userId;
+    const { content } = req.body;
+    const eventId = Number(req.params.eventId);
+
+    if (!userId || !eventId || !content) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    // pass postId = null, eventId = <something>
+    const comment = await CommentService.addComment(userId, null, eventId, content);
+    return res.status(201).json({ message: "Comment added to event", comment });
+  } catch (error) {
+    console.error("Add Event Comment Error:", error);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// GET    /events/:eventId/comments
+exports.getCommentsByEvent = async (req, res) => {
+  try {
+    const eventId = Number(req.params.eventId);
+    if (!eventId) {
+      return res.status(400).json({ error: "Missing eventId" });
+    }
+
+    const comments = await CommentService.getCommentsByEvent(eventId);
+    return res.status(200).json({ comments });
+  } catch (error) {
+    console.error("Get Event Comments Error:", error);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
 };
