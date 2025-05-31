@@ -28,16 +28,17 @@ class MessageService {
         row.is_deleted
       );
 
-      // Push to Firebase Realtime Database
-      const convoId = makeConversationId(senderId, receiverId);
-      const firebaseData = {
-        id: row.id,
-        senderId: row.sender_id,
-        receiverId: row.receiver_id,
-        text: row.text,
-        imageUrl: row.image_url,
-        createdAt: row.created_at.toISOString()
-      };
+const convoId = makeConversationId(senderId, receiverId);
+const firebaseData = {
+  id: row.id.toString(), 
+  senderId: row.sender_id.toString(),
+  receiverId: row.receiver_id.toString(),
+  text: row.text || null, 
+  imageUrl: row.image_url || null,
+  createdAt: row.created_at.toISOString(),
+  editedAt: row.edited_at ? row.edited_at.toISOString() : null,
+  isDeleted: row.is_deleted || false
+};
       await realtimeDb
         .ref(`conversations/${convoId}/messages/${row.id}`)
         .set(firebaseData);
