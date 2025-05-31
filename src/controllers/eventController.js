@@ -285,3 +285,13 @@ exports.getCommentsByEvent = async (req, res) => {
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };
+exports.getEventsByUserId = async (req, res) => {
+    try {
+        const userId = req.params.userId;
+        const events = await EventService.getEventsByUserId(userId);
+        res.status(200).json(events);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Failed to fetch events by user ID" });
+    }
+};
