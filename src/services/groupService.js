@@ -385,6 +385,32 @@ static async getGroupById(groupId) {
         client.release();
     }
 }
+static async getGroupsByUserId(userId) {
+    const client = await pool.connect();
+    try {
+        const result = await client.query(`
+            SELECT DISTINCT g.*
+            FROM groups g
+            LEFT JOIN group_members gm ON gm.group_id = g.id
+            WHERE g.created_by = $1 OR gm.user_id = $1
+            ORDER BY g.created_at DESC
+        `, [userId]);
+
+        return result.rows.map(row => new Group(
+            row.id,
+            row.name,
+            row.description,
+            row.image_url,
+            row.created_by,
+            row.created_at
+        ));
+    } catch (error) {
+        throw new Error("Error fetching user's groups: " + error.message);
+    } finally {
+        client.release();
+    }
+}
+
 
 }
 

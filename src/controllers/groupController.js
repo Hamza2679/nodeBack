@@ -253,3 +253,18 @@ exports.isAdmin = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+exports.getGroupsByUserId = async (req, res) => {
+    try {
+        const userId = req.params.userId;
+
+        if (!userId) {
+            return res.status(400).json({ message: "User ID is required" });
+        }
+
+        const groups = await GroupService.getGroupsByUserId(userId);
+        return res.status(200).json(groups);
+    } catch (error) {
+        console.error("Error in getGroupsByUserId:", error);
+        return res.status(500).json({ message: error.message });
+    }
+};

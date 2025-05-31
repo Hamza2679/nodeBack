@@ -13,6 +13,7 @@ const {
     deleteGroup,
     isAdmin,
     deleteGroupAndReports,
+    getGroupsByUserId,
     getReportedGroups
 } = require("../controllers/groupController");
 const { authenticateToken, authorizeRoles } = require("../middleware/authMiddleware");
@@ -340,5 +341,15 @@ router.delete(
   authorizeRoles(['admin']),
   deleteGroupAndReports
 );
+router.delete('/:groupId/leave', authenticateToken, leaveGroup);
+
+
+router.get('/:id/members', authenticateToken, getGroupMembers);
+
+router.post("/report/:groupId", authenticateToken, reportGroup);
+
+router.delete('/:groupId/members/:userId', authenticateToken, removeMember);
+
+router.get("/user/:userId", getGroupsByUserId);
 
 module.exports = router;
