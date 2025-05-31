@@ -29,48 +29,35 @@ class MessageService {
         }
     }
 
-    static async getConversation(user1Id, user2Id, limit = 10, offset = 0) {
-        const client = await pool.connect();
-        try {
-            const messagesQuery = `
-                SELECT * FROM messages
-                WHERE (sender_id = $1 AND receiver_id = $2)
-                   OR (sender_id = $2 AND receiver_id = $1)
-                ORDER BY created_at DESC
-                LIMIT $3 OFFSET $4
-            `;
-    
-            const countQuery = `
-                SELECT COUNT(*) FROM messages
-                WHERE (sender_id = $1 AND receiver_id = $2)
-                   OR (sender_id = $2 AND receiver_id = $1)
-            `;
-    
-            const messagesResult = await client.query(messagesQuery, [user1Id, user2Id, limit, offset]);
-            const countResult = await client.query(countQuery, [user1Id, user2Id]);
-    
-            const total = parseInt(countResult.rows[0].count, 10);
-    
-            // reverse the order to ASC (so frontend displays in correct order)
-            const messages = messagesResult.rows
-                .map(row => new Message(
-                    row.id,
-                    row.sender_id,
-                    row.receiver_id,
-                    row.text,
-                    row.image_url,
-                    row.created_at,
-                    row.edited_at,
-                    row.is_deleted
-                ))
-    
-            return { messages, total };
-        } finally {
-            client.release();
-        }
+   static async getConversation(user1Id, user2Id) {
+    const client = await pool.connect();
+    try {
+        const messagesQuery = `
+            SELECT * FROM messages
+            WHERE (sender_id = $1 AND receiver_id = $2)
+               OR (sender_id = $2 AND receiver_id = $1)
+            ORDER BY created_at ASC
+        `;
+
+        const messagesResult = await client.query(messagesQuery, [user1Id, user2Id]);
+
+        const messages = messagesResult.rows.map(row => new Message(
+            row.id,
+            row.sender_id,
+            row.receiver_id,
+            row.text,
+            row.image_url,
+            row.created_at,
+            row.edited_at,
+            row.is_deleted
+        ));
+
+        return { messages };
+    } finally {
+        client.release();
     }
-    
-    
+}
+
     
     static async getMessagesBetweenUsersPaginated(userId1, userId2, limit = 10, offset = 0) {
         const client = await pool.connect();
