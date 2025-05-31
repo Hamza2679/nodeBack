@@ -257,6 +257,8 @@ router.get(
 router.post('/', authenticateToken, eventController.createEvent);
 router.get('/:id/online-link', authenticateToken, eventController.getOnlineLink);
 router.get('/group/:groupId', eventController.getEventsByGroup);
+router.post("/:eventId/comments", authenticateToken, eventController.addCommentToEvent);
+router.get("/:eventId/comments", authenticateToken, eventController.getCommentsByEvent);
 
 
 module.exports = router;
