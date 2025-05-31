@@ -20,7 +20,7 @@ const groupPostReportRoutes = require('./routes/groupPostReportRoutes');
 const db = require("./config/db");
 const swaggerDocs = require("../swagger");
 
-const { initSocket } = require("./utils/initS");
+const { initSocket } = require("./utils/messageSocket");
 
 dotenv.config();
 const app = express();

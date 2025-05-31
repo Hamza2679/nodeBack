@@ -3,6 +3,7 @@ const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const handleMessageSocket = require('./messageSocket');
 const { handleGroupSocket } = require('./socket');
+const { verifyToken } = require("../middleware/authMiddleware"); // ADD MISSING IMPORT
 
 function initSocket(server) {
   const io = new Server(server, {
@@ -11,37 +12,38 @@ function initSocket(server) {
       methods: ['GET', 'POST'],
     },
     connectionStateRecovery: {
+      maxDisconnectionDuration: 30000, // 30 seconds recovery window
       skipMiddlewares: true,
     },
   });
 
-  // JWT authentication for socket connection
-  io.use((socket, next) => {
-    const token = socket.handshake.auth?.token || socket.handshake.headers?.authorization?.split(' ')[1];
-
-    if (!token) {
-      return next(new Error('Authentication token missing'));
-    }
-
+  io.use(async (socket, next) => {
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      socket.user = decoded.user || decoded; // Attach user to socket
+      const token = socket.handshake.auth.token;
+      if (!token) return next(new Error("Missing token"));
+      
+      const userId = await verifyToken(token);
+      if (!userId) return next(new Error("Invalid token"));
+      
+      socket.userId = userId;
       next();
     } catch (err) {
-      next(new Error(err.name === 'TokenExpiredError' ? 'Token expired' : 'Invalid token'));
+      if (err.name === 'TokenExpiredError') {
+        return next(new Error("Token expired"));
+      }
+      next(new Error("Authentication failed"));
     }
   });
 
-  io.on('connection', (socket) => {
-    console.log(`Socket connected: ${socket.id}, user ID: ${socket.user?.id}`);
-
-    // Attach handlers
+  io.on("connection", (socket) => {
+    console.log(`Socket connected: ${socket.id}, User: ${socket.userId}`);
+    
+    // Join user-specific rooms
+    socket.join(socket.userId);
+    socket.join(`user_${socket.userId}`);
+    
     handleMessageSocket(io, socket);
     handleGroupSocket(io, socket);
-
-    socket.on('disconnect', () => {
-      console.log(`Socket disconnected: ${socket.id}`);
-    });
   });
 
   return io;
