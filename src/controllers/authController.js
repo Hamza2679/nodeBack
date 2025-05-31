@@ -21,13 +21,14 @@ exports.verifySignupOTP = async (req, res) => {
 
 exports.completeSignup = async (req, res) => {
     try {
-        const { universityId, password, firstName, lastName, email } = req.body;
+        const { universityId, password, firstName, lastName, email,profilePicture } = req.body;
         const result = await authService.completeSignup(
             universityId, 
             password, 
             firstName, 
             lastName, 
-            email
+            email,
+            profilePicture
         );
         res.status(200).json(result);
     } catch (error) {
@@ -194,5 +195,23 @@ exports.editProfile = async (req, res) => {
     } catch (error) {
         console.error("Edit Profile Error:", error);
         return res.status(500).json({ error: "Internal Server Error" });
+    }
+};
+
+
+// Add this to authController.js
+exports.changePassword = async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const { currentPassword, newPassword } = req.body;
+
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ error: 'Both current and new password are required' });
+        }
+
+        const result = await authService.changePassword(userId, currentPassword, newPassword);
+        res.status(200).json(result);
+    } catch (error) {
+        res.status(400).json({ error: error.message });
     }
 };

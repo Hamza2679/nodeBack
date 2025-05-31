@@ -11,9 +11,11 @@ const {
     joinGroupUsAdmin,
     removeMember,
     deleteGroup,
-    isAdmin
+    isAdmin,
+    deleteGroupAndReports,
+    getReportedGroups
 } = require("../controllers/groupController");
-const { authenticateToken } = require("../middleware/authMiddleware");
+const { authenticateToken, authorizeRoles } = require("../middleware/authMiddleware");
 
 const upload = require('../middleware/upload');
 
@@ -257,6 +259,18 @@ router.post('/:groupId/report', authenticateToken, reportGroup);
  *       404:
  *         description: Group or user not found
  */
+router.get(
+  '/admin/groups/reported',
+  authenticateToken,
+  authorizeRoles(['admin']),
+  getReportedGroups
+);
 router.delete('/:groupId/members/:userId', authenticateToken, removeMember);
+router.delete(
+  '/admin/groups/:groupId',
+  authenticateToken,
+  authorizeRoles(['admin']),
+  deleteGroupAndReports
+);
 
 module.exports = router;

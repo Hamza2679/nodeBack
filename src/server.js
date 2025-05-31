@@ -13,16 +13,16 @@ const eventRoutes = require("./routes/eventRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const followRoutes = require("./routes/followRoutes");
 const studentRoutes = require("./routes/studentRoutes"); 
+const reportRoutes = require("./routes/reportRoutes");
+const groupPostReportRoutes = require('./routes/groupPostReportRoutes');
+
 
 const db = require("./config/db");
 const swaggerDocs = require("../swagger");
 
-const { initSocket } = require("./utils/messageSocket");
-
 dotenv.config();
 const app = express();
-const server = http.createServer(app); 
-initSocket(server); 
+const server = http.createServer(app);
 
 const allowedOrigins = ["http://127.0.0.1:5500", "http://localhost:2919"];
 app.use(cors({
@@ -34,6 +34,8 @@ app.use(cors({
 app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/api/auth", authRoutes);
+app.use('/api', reportRoutes);
+app.use('/api', groupPostReportRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/groups", groupRoutes);
 app.use("/api/posts", postRoutes);

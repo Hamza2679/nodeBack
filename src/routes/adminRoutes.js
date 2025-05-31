@@ -1,6 +1,7 @@
 const express = require("express");
 const adminAuthController = require("../controllers/adminauthController");
 const AdminController = require('../controllers/adminController');
+const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
@@ -158,8 +159,12 @@ router.get('/reports', AdminController.getReports);
  *       401:
  *         description: Unauthorized
  */
-router.post('/reports/:id/resolve', AdminController.resolveReport);
-
+router.post(
+  '/reports/:id/resolve',
+  authenticateToken,
+  authorizeRoles(['admin']),
+  AdminController.resolveReport
+);
 /**
  * @swagger
  * /api/admin/users:

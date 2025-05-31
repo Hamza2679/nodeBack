@@ -277,6 +277,72 @@ if (checkResult.rows[0].created_by !== userId) {
     }
 }
 
+  static async deleteGroupAndReports(groupId) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // 1) delete reports
+      await client.query(
+        `DELETE FROM group_reports
+         WHERE group_id = $1`,
+        [groupId]
+      );
+
+      // 2) delete the group
+      const result = await client.query(
+        `DELETE FROM groups
+         WHERE id = $1
+         RETURNING *`,
+        [groupId]
+      );
+
+      await client.query('COMMIT');
+      return result.rowCount > 0;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+
+// services/groupService.js
+
+static async listReportedGroups() {
+  const client = await pool.connect();
+  try {
+    const q = `
+      SELECT
+        g.id,
+        g.name,
+        g.description,
+        COUNT(r.id)            AS report_count,
+        MAX(r.created_at)      AS last_reported_at,
+        ARRAY_AGG(r.reason)    AS reasons
+      FROM groups g
+      JOIN group_reports r
+        ON r.group_id = g.id
+      GROUP BY g.id, g.name, g.description
+      ORDER BY report_count DESC, last_reported_at DESC
+    `;
+    const { rows } = await client.query(q);
+    return rows.map(r => ({
+      groupId:        r.id,
+      name:           r.name,
+      description:    r.description,
+      reportCount:    parseInt(r.report_count, 10),
+      lastReportedAt: r.last_reported_at,
+      reasons:        r.reasons    // this is an array of strings
+    }));
+  } finally {
+    client.release();
+  }
+}
+
+
+
 static async removeMember(groupId, userIdToRemove, requesterId) {
     const client = await pool.connect();
     try {

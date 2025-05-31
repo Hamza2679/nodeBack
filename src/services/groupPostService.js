@@ -5,11 +5,13 @@ class GroupPostService {
     static async create(group_id, user_id, text, image_url) {
         const client = await pool.connect();
         try {
+            console.log("Creating post for group:", group_id, "by user:", user_id);
             const result = await client.query(
                 `INSERT INTO group_posts (group_id, user_id, text, image_url, created_at)
                  VALUES ($1, $2, $3, $4, NOW()) RETURNING *`,
                 [group_id, user_id, text, image_url]
             );
+            console.log("Post created successfully:", result.rows[0]);
     
             return result.rows[0];
         } catch (error) {
@@ -87,29 +89,34 @@ class GroupPostService {
    static async delete(id, userId) {
     const client = await pool.connect();
     try {
-        // Retrieve the post to get group_id and user_id
         const postResult = await client.query('SELECT * FROM group_posts WHERE id = $1', [id]);
-        if (postResult.rows.length === 0) return false;
+        if (postResult.rows.length === 0) return { success: false };
+        
         const post = postResult.rows[0];
+        let isAuthorized = false;
 
-        // Check if the user is the post creator
+        // Check if user is post creator
         if (post.user_id === userId) {
-            await client.query('DELETE FROM group_posts WHERE id = $1', [id]);
-            return true;
-        }
+            isAuthorized = true;
+        } 
         // Check if user is group admin/owner
-        const memberResult = await client.query(
-
+        else {
+            const memberResult = await client.query(
                 `SELECT * FROM groups WHERE id = $1 AND created_by = $2`,
                 [post.group_id, userId]
+            );
+            isAuthorized = memberResult.rows.length > 0;
+        }
 
-        ); 
-        console.log("Member Result:", memberResult.rows);
-        if (memberResult.rows.length === 0) return false;
+        if (!isAuthorized) return { success: false };
         
-            await client.query('DELETE FROM group_posts WHERE id = $1', [id]);
-            return true;
-       
+        await client.query('DELETE FROM group_posts WHERE id = $1', [id]);
+        return { 
+            success: true, 
+            group_id: post.group_id
+        };
+    } catch (error) {
+        throw error;
     } finally {
         client.release();
     }

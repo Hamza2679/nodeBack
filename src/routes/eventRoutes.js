@@ -473,6 +473,8 @@ router.get('/:id/online-link', authenticateToken, eventController.getOnlineLink)
  *         description: No events found for this group
  */
 router.get('/group/:groupId', eventController.getEventsByGroup);
+router.post("/:eventId/comments", authenticateToken, eventController.addCommentToEvent);
+router.get("/:eventId/comments", authenticateToken, eventController.getCommentsByEvent);
 
 
 module.exports = router;

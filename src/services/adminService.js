@@ -111,17 +111,57 @@ SELECT r.*, u1.first_name AS reporter_name, u2.first_name AS reported_name,
     } finally { client.release(); }
   }
 
-  static async resolveReport(reportId, adminId, actionTaken) {
-    const client = await pool.connect();
-    try {
-      const result = await client.query(
-        `UPDATE report SET resolved = true, resolved_by = $1, action_taken = $2, resolved_at = NOW() WHERE id = $3 RETURNING *`,
-        [adminId, actionTaken, reportId]
+static async resolveReport(reportId, adminId, actionTaken) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN'); // Start transaction
+
+    // 1. Get the report details first
+    const reportResult = await client.query(
+      `SELECT * FROM report WHERE id = $1 AND resolved = false FOR UPDATE`,
+      [reportId]
+    );
+    
+    if (reportResult.rows.length === 0) {
+      throw new Error("Report not found or already resolved");
+    }
+    
+    const report = reportResult.rows[0];
+
+    // 2. Perform actions based on actionTaken
+    if (actionTaken.includes("post removed") && report.postid) {
+      await client.query(
+        `DELETE FROM posts WHERE id = $1`,
+        [report.postid]
       );
-      if (result.rows.length === 0) throw new Error("Report not found");
-      return result.rows[0];
-    } finally { client.release(); }
+    }
+    
+    if (actionTaken.includes("user warned") && report.reporteduserid) {
+      // Example: Increment warning count for user
+      await client.query(
+        `UPDATE users SET warnings = warnings + 1 WHERE id = $1`,
+        [report.reporteduserid]
+      );
+    }
+
+    // 3. Mark report as resolved
+    const result = await client.query(
+      `UPDATE report 
+       SET resolved = true, resolved_by = $1, action_taken = $2, resolved_at = NOW() 
+       WHERE id = $3 
+       RETURNING *`,
+      [adminId, actionTaken, reportId]
+    );
+
+    await client.query('COMMIT'); // Commit transaction
+    return result.rows[0];
+  } catch (error) {
+    await client.query('ROLLBACK'); // Rollback on error
+    throw error;
+  } finally { 
+    client.release(); 
   }
+}
 
   static async getUsers(page = 1, limit = 10, search = "") {
     const client = await pool.connect();
@@ -222,32 +262,50 @@ static async updateUserRole(userId, newRole) {
     }
   }
   
-  static async deleteUser(userId) {
-    const client = await pool.connect();
-    try {
-      // First check if user exists
-      const userRes = await client.query('SELECT id FROM users WHERE id = $1', [userId]);
-      if (userRes.rows.length === 0) throw new Error("User not found");
-  
-      // In a real app, you might want to soft delete or handle dependencies
-      await client.query('BEGIN');
-      
-      // Example: Delete user's posts, comments, etc. first
-      // This is just a basic example - adjust based on your schema
-      await client.query('DELETE FROM posts WHERE userid = $1', [userId]);
-      await client.query('DELETE FROM comments WHERE userid = $1', [userId]);
-      
-      // Then delete the user
-      await client.query('DELETE FROM users WHERE id = $1', [userId]);
-      
-      await client.query('COMMIT');
-    } catch (err) {
-      await client.query('ROLLBACK');
-      throw err;
-    } finally {
-      client.release();
+// services/adminService.js
+
+static async deleteUser(userId) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1) Ensure user exists and is active
+    const userRes = await client.query(
+      'SELECT id FROM users WHERE id = $1 AND is_active = TRUE',
+      [userId]
+    );
+    if (userRes.rowCount === 0) {
+      throw new Error('User not found or already deactivated');
     }
+
+    // 2) Delete any reports they filed or were the target of
+    await client.query(
+      `DELETE FROM user_reports
+       WHERE reporter_id = $1
+          OR reported_id = $1`,
+      [userId]
+    );
+
+    // 3) Soft‐delete the user
+    const result = await client.query(
+      `UPDATE users
+         SET is_active = FALSE
+       WHERE id = $1
+       RETURNING id, first_name, last_name, email, role`,
+      [userId]
+    );
+
+    await client.query('COMMIT');
+    return result.rows[0];
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
+}
+
+
 
   static async sendPushNotification({ title, message, userIds = [], segments = [] }) {
     try {
@@ -330,6 +388,26 @@ static async updateUserRole(userId, newRole) {
       return { logs: lRes.rows, total, page, pages: Math.ceil(total/limit) };
     } finally { client.release(); }
   }
+
+  // services/adminService.js
+static async deactivateUser(userId) {
+  const client = await pool.connect();
+  try {
+    const result = await client.query(
+      `UPDATE users
+         SET is_active = FALSE
+       WHERE id = $1
+       RETURNING id, first_name, last_name, email, role;`,
+      [userId]
+    );
+    if (result.rowCount === 0) throw new Error('User not found');
+    return result.rows[0];
+  } finally {
+    client.release();
+  }
 }
+
+}
+
 
 module.exports = AdminService;
