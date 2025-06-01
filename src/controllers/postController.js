@@ -124,18 +124,33 @@ exports.getLikesByPost = async (req, res) => {
 };
 
 exports.addComment = async (req, res) => {
-    try {
-        const userId = req.user?.userId;
-        const { postId, content } = req.body;
+  try {
+    const userId = req.user?.userId;
+    const { postId, eventId, content } = req.body;
 
-        if (!userId || !postId || !content) return res.status(400).json({ error: "Missing required fields" });
-
-        const comment = await CommentService.addComment(userId, postId, content);
-        return res.status(201).json({ message: "Comment added successfully", comment });
-    } catch (error) {
-        res.status(500).json({ error: "Internal Server Error" });
+    if (!userId || (!postId && !eventId) || !content) {
+      return res.status(400).json({ error: "Missing required fields" });
     }
+
+    // If they passed postId, use postId; otherwise use eventId.
+    // (And explicitly pass `null` for whichever one they didn’t pass.)
+    const comment = await CommentService.addComment(
+      userId,
+      postId || null,
+      eventId || null,
+      content
+    );
+
+    return res.status(201).json({
+      message: "Comment added successfully",
+      comment
+    });
+  } catch (error) {
+    console.error("Error in addComment:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 };
+
 
 exports.getCommentsByPost = async (req, res) => {
     try {
