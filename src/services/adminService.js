@@ -3,6 +3,8 @@ const OneSignal = require("onesignal-node");
 // At the top of your adminRoutes.js
 const UserService = require('../services/UserService');
 const https = require('https');
+const axios = require('axios');
+
 
 // Add this before creating your OneSignal client
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; // ⚠️ Disables SSL verification
@@ -337,7 +339,7 @@ static async sendPushNotification({ title, message, userIds = [], segments = [] 
     );
 
     // 2) Persist to our notifications table
-    const NotificationService = require('./notification.service');
+    const NotificationService = require('./notificationService');
     if (userIds.length) {
       // one record per user
       const insertPromises = userIds.map((uid) =>
