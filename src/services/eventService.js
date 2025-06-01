@@ -248,6 +248,35 @@ static async getAllEvents() {
             client.release();
         }
     }
+    static async getEventsByUserId(userId) {
+    if (!userId) throw new Error("User ID is required");
+
+    const client = await pool.connect();
+    try {
+        const query = `SELECT * FROM events WHERE user_id = $1 ORDER BY datetime DESC`;
+        const result = await client.query(query, [userId]);
+
+        return result.rows.map(row => new Event(
+            row.id,
+            row.user_id,
+            row.name,
+            row.type,
+            row.datetime,
+            row.description,
+            row.cover_photo_url,
+            row.image_urls,
+            row.is_online,
+            row.online_link,
+            row.online_link_visible,
+            row.created_at,
+            row.updated_at,
+            row.group_id
+        ));
+    } finally {
+        client.release();
+    }
+}
+
 
     static async isUserAttending(userId, eventId) {
         const client = await pool.connect();
