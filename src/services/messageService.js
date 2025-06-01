@@ -17,22 +17,27 @@ const KEY = Buffer.from(KEY_HEX, "hex");
 
 class MessageService {
   static _encryptPlaintext(plaintext) {
-    // 1) generate a 12-byte random IV
-    const iv = crypto.randomBytes(12);
-    // 2) create AES-256-GCM cipher
+    const iv = crypto.randomBytes(12); // 12 bytes for AES-256-GCM
     const cipher = crypto.createCipheriv("aes-256-gcm", KEY, iv);
-    // 3) encrypt
     const ciphertext = Buffer.concat([
       cipher.update(plaintext, "utf8"),
       cipher.final(),
     ]);
-    // 4) get authentication tag (16 bytes)
     const authTag = cipher.getAuthTag();
     return { iv, authTag, ciphertext };
   }
 
-  // ── Helper: decrypt given Buffers iv/authTag/ciphertext => UTF-8 string
   static _decryptCipher(iv, authTag, ciphertext) {
+    if (!iv || iv.length !== 12) {
+      throw new Error(
+        `Invalid IV length: expected 12 bytes, got ${iv ? iv.length : 0}`
+      );
+    }
+    if (!authTag || authTag.length !== 16) {
+      throw new Error(
+        `Invalid AuthTag length: expected 16 bytes, got ${authTag ? authTag.length : 0}`
+      );
+    }
     const decipher = crypto.createDecipheriv("aes-256-gcm", KEY, iv);
     decipher.setAuthTag(authTag);
     const decrypted = Buffer.concat([
@@ -45,10 +50,8 @@ class MessageService {
   static async createMessage(senderId, receiverId, text, imageUrl) {
     const client = await pool.connect();
     try {
-      // 1) Encrypt the plaintext 'text'
       const { iv, authTag, ciphertext } = MessageService._encryptPlaintext(text);
 
-      // 2) Insert into PostgreSQL (iv/authTag/ciphertext as BYTEA)
       const query = `
         INSERT INTO messages 
           (sender_id, receiver_id, iv, auth_tag, ciphertext, image_url)
@@ -58,15 +61,14 @@ class MessageService {
       const values = [
         senderId,
         receiverId,
-        iv, // BYTEA
-        authTag, // BYTEA
-        ciphertext, // BYTEA
+        iv,
+        authTag,
+        ciphertext,
         imageUrl || null,
       ];
       const result = await client.query(query, values);
       const row = result.rows[0];
 
-      // 3) Decrypt right away so that we return a Message model containing plaintext
       const decryptedText = MessageService._decryptCipher(
         row.iv,
         row.auth_tag,
@@ -83,13 +85,11 @@ class MessageService {
         row.is_deleted
       );
 
-      // 4) Push the encrypted data to Firebase (so Firebase only stores ciphertext)
       const convoId = makeConversationId(senderId, receiverId);
       const firebaseData = {
         id: row.id.toString(),
         senderId: row.sender_id.toString(),
         receiverId: row.receiver_id.toString(),
-        // Store Base64-encoded blobs so clients can’t directly read them
         ciphertext: row.ciphertext.toString("base64"),
         iv: row.iv.toString("base64"),
         authTag: row.auth_tag.toString("base64"),
@@ -108,20 +108,17 @@ class MessageService {
     }
   }
 
-  // ── Edit an existing message (must re-encrypt newText)
   static async editMessage(messageId, userId, newText) {
     const client = await pool.connect();
     try {
-      // 1) Encrypt the new plaintext
       const { iv, authTag, ciphertext } = MessageService._encryptPlaintext(
         newText
       );
 
-      // 2) Update row: replace iv/authTag/ciphertext, set edited_at = NOW()
       const query = `
         UPDATE messages
         SET 
-          iv       = $1,
+          iv = $1,
           auth_tag = $2,
           ciphertext = $3,
           edited_at = NOW()
@@ -134,7 +131,6 @@ class MessageService {
         throw new Error("Message not found or unauthorized");
       const row = result.rows[0];
 
-      // 3) Decrypt so we can return plaintext
       const decryptedText = MessageService._decryptCipher(
         row.iv,
         row.auth_tag,
@@ -151,7 +147,6 @@ class MessageService {
         row.is_deleted
       );
 
-      // 4) Sync the new encrypted blobs to Firebase
       const convoId = makeConversationId(row.sender_id, row.receiver_id);
       await realtimeDb
         .ref(`conversations/${convoId}/messages/${row.id}`)
@@ -168,12 +163,9 @@ class MessageService {
     }
   }
 
-  // ── Delete a message: we null out iv/authTag/ciphertext (so text is unrecoverable),
-  //    null image_url, and set is_deleted = TRUE. Firebase removes the node.
   static async deleteMessage(messageId, userId) {
     const client = await pool.connect();
     try {
-      // 1) Null‐out the encrypted blobs & image_url, set is_deleted
       const query = `
         UPDATE messages
         SET 
@@ -194,14 +186,13 @@ class MessageService {
         row.id,
         row.sender_id,
         row.receiver_id,
-        null, // no plaintext
-        null, // no image URL
+        null,
+        null,
         row.created_at,
         row.edited_at,
         row.is_deleted
       );
 
-      // 2) Remove from Firebase entirely
       const convoId = makeConversationId(row.sender_id, row.receiver_id);
       await realtimeDb
         .ref(`conversations/${convoId}/messages/${row.id}`)
@@ -214,10 +205,7 @@ class MessageService {
   }
 
   static async getConversation(user1Id, user2Id) {
-    console.log(
-      `Fetching conversation between users ${user1Id} and ${user2Id}`);
     const client = await pool.connect();
-    
     try {
       const messagesQuery = `
         SELECT 
@@ -232,21 +220,26 @@ class MessageService {
         user1Id,
         user2Id,
       ]);
-      console.log(
-        `Fetched ${messagesResult.rowCount} messages between users ${user1Id} and ${user2Id}`
-      );
       const messages = messagesResult.rows.map((row) => {
         let plaintext = null;
-        if (!row.is_deleted) {
-          plaintext = MessageService._decryptCipher(
-            row.iv,
-            row.auth_tag,
-            row.ciphertext
-          );
+        if (
+          !row.is_deleted &&
+          row.iv &&
+          row.iv.length === 12 &&
+          row.auth_tag &&
+          row.auth_tag.length === 16
+        ) {
+          try {
+            plaintext = MessageService._decryptCipher(
+              row.iv,
+              row.auth_tag,
+              row.ciphertext
+            );
+          } catch (err) {
+            console.error(`Decryption failed for message ID ${row.id}:`, err);
+            plaintext = "[Unable to decrypt]";
+          }
         }
-        console.log(
-          `Decrypted message ID ${row.id} for users ${user1Id} and ${user2Id}`
-        );
         return new Message(
           row.id,
           row.sender_id,
@@ -265,7 +258,6 @@ class MessageService {
     }
   }
 
-  // ── Paginated fetch (newest first). Decrypt each text before returning.
   static async getMessagesBetweenUsersPaginated(
     userId1,
     userId2,
@@ -293,12 +285,23 @@ class MessageService {
 
       return result.rows.map((row) => {
         let plaintext = null;
-        if (!row.is_deleted) {
-          plaintext = MessageService._decryptCipher(
-            row.iv,
-            row.auth_tag,
-            row.ciphertext
-          );
+        if (
+          !row.is_deleted &&
+          row.iv &&
+          row.iv.length === 12 &&
+          row.auth_tag &&
+          row.auth_tag.length === 16
+        ) {
+          try {
+            plaintext = MessageService._decryptCipher(
+              row.iv,
+              row.auth_tag,
+              row.ciphertext
+            );
+          } catch (err) {
+            console.error(`Decryption failed for message ID ${row.id}:`, err);
+            plaintext = "[Unable to decrypt]";
+          }
         }
         return new Message(
           row.id,
@@ -316,8 +319,6 @@ class MessageService {
     }
   }
 
-  // ── Fetch latest message per “conversation” for a given user
-  //     Join with the other user's profile. Decrypt each text.
   static async getMessagesByUser(userId) {
     const client = await pool.connect();
     try {
@@ -354,15 +355,25 @@ class MessageService {
           m.created_at DESC;
       `;
       const result = await client.query(query, [userId]);
-
       return result.rows.map((row) => {
         let plaintext = null;
-        if (!row.is_deleted) {
-          plaintext = MessageService._decryptCipher(
-            row.iv,
-            row.auth_tag,
-            row.ciphertext
-          );
+        if (
+          !row.is_deleted &&
+          row.iv &&
+          row.iv.length === 12 &&
+          row.auth_tag &&
+          row.auth_tag.length === 16
+        ) {
+          try {
+            plaintext = MessageService._decryptCipher(
+              row.iv,
+              row.auth_tag,
+              row.ciphertext
+            );
+          } catch (err) {
+            console.error(`Decryption failed for message ID ${row.id}:`, err);
+            plaintext = "[Unable to decrypt]";
+          }
         }
         return {
           id: row.id,
