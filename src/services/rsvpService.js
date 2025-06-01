@@ -68,34 +68,45 @@ class RsvpService {
   }
 
   /** Send a OneSignal push immediately to this user */
-  static async sendImmediateNotification(event, rsvp) {
-    const appId  = process.env.ONESIGNAL_APP_ID;
-    const apiKey = process.env.ONESIGNAL_REST_API_KEY;
+static async sendImmediateNotification(event, rsvp) {
+  const appId  = process.env.ONESIGNAL_APP_ID;
+  const apiKey = process.env.ONESIGNAL_REST_API_KEY;
 
-    const payload = {
-      app_id: appId,
-      filters: [
-        { field: 'tag', key: 'user_id', relation: '=', value: rsvp.user_id.toString() }
-      ],
-      headings: { en: 'Event Reminder' },
-      contents: { en: `Your event "${event.name}" starts now! You marked "${rsvp.status}".` },
-      data: { eventId: event.id }
-    };
+  const payload = {
+    app_id: appId,
+    filters: [
+      { field: 'tag', key: 'user_id', relation: '=', value: rsvp.user_id.toString() }
+    ],
+    headings: { en: 'Event Reminder' },
+    contents: { en: `Your event "${event.name}" starts now! You marked "${rsvp.status}".` },
+    data: { eventId: event.id }
+  };
 
-    const res = await axios.post(
-      'https://onesignal.com/api/v1/notifications',
-      payload,
-      {
-        headers: {
-          Authorization: `Basic ${apiKey}`,
-          'Content-Type': 'application/json'
-        }
+  // 1) Send to OneSignal
+  const res = await axios.post(
+    'https://onesignal.com/api/v1/notifications',
+    payload,
+    {
+      headers: {
+        Authorization: `Basic ${apiKey}`,
+        'Content-Type': 'application/json'
       }
-    );
+    }
+  );
+  console.log(`🔔 Sent reminder notification for RSVP ${rsvp.id}:`, res.data.id);
 
-    console.log(`🔔 Sent reminder notification for RSVP ${rsvp.id}:`, res.data.id);
-  }
+  // 2) Persist into your notifications table
+const NotificationService = require('./notificationService');
+  await NotificationService.createNotificationRecord({
+    userId: rsvp.user_id,
+    type: 'event',
+    title: 'Event Reminder',
+    message: `Your event "${event.name}" starts now! You marked "${rsvp.status}".`,
+    data: { eventId: event.id, rsvpId: rsvp.id }
+  });
 
+  return res;
+}
   /** List all RSVPs for an event */
   static async getByEvent(eventId) {
     const client = await pool.connect();
