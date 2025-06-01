@@ -79,12 +79,16 @@ async function sendSystemNotification({ title, message, userIds = [], segments =
     throw new Error('OneSignal credentials not configured');
   }
 
-  // 1) Build the OneSignal payload
+  // 1) Build OneSignal payload.
+  //    If userIds is non-empty, target specific external_user_ids.
+  //    Otherwise target “All” (or “Subscribed Users” once you confirm it's not empty).
   const notification = {
     app_id: ONESIGNAL_APP_ID,
     headings: { en: title || 'New Notification' },
     contents: { en: message },
-    included_segments: segments.length ? segments : ['Subscribed Users'],
+    included_segments: segments.length
+      ? segments
+      : ['All']   // <— switch to “All” if “Subscribed Users” was empty
   };
 
   if (userIds.length) {
@@ -94,53 +98,57 @@ async function sendSystemNotification({ title, message, userIds = [], segments =
 
   console.log('Final OneSignal payload:', JSON.stringify(notification, null, 2));
 
-  // 2) Send to OneSignal (using axios directly or oneSignalClient)
-  const res = await axios.post(
+  // 2) Fire off to OneSignal
+  const oneSignalRes = await axios.post(
     'https://onesignal.com/api/v1/notifications',
     notification,
     {
       headers: {
         Authorization: `Basic ${ONESIGNAL_REST_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
+        'Content-Type': 'application/json'
+      }
     }
   );
-  console.log(`🔔 OneSignal sent system notification:`, res.data.id);
+  console.log(`🔔 OneSignal returned ID:`, oneSignalRes.data.id);
 
-  // 3) Persist one record per user (if you supplied userIds), 
-  //    or if you used segments, you may fetch the segment’s members or skip DB‐insertion for each user.
-  //    Here’s a simple approach: if userIds is nonempty, insert one row per user; 
-  //    if segments was used, you might skip per-user records or insert a generic “broadcast.”
+  // 3) Persist one record per user (never insert user_id = NULL)
+  let insertedRows = [];
 
-  let insertedRecords = [];
   if (userIds.length) {
-    // Insert one notification row per specified userId
-    const insertPromises = userIds.map((uid) =>
+    // You passed an explicit list → insert only for each userId
+    const promises = userIds.map((uid) =>
       createNotificationRecord({
         userId: uid,
         type: 'system',
         title,
         message,
-        data: {}, // add any needed metadata
+        data: {}
       })
     );
-    insertedRecords = await Promise.all(insertPromises);
+    insertedRows = await Promise.all(promises);
+
   } else {
-    // For broadcast: you could either insert a single row with user_id = null,
-    // or you could decide to insert a row per user in code after querying everyone.
-    // Below is an example of inserting a “broadcast” record (user_id = NULL).
-    const { rows } = await pool.query(
-      `
-      INSERT INTO notifications (user_id, type, title, message, data)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING *;
-      `,
-      [null, 'system', title, message, {}]
+    // BROADCAST CASE → insert one row per every user in your users table
+    // (If you have a server-side segment table, you can filter by segments here.)
+    const { rows: allUsers } = await pool.query('SELECT id FROM users;');
+    const allIds = allUsers.map((r) => r.id);
+
+    const promises = allIds.map((uid) =>
+      createNotificationRecord({
+        userId: uid,
+        type: 'system',
+        title,
+        message,
+        data: {}
+      })
     );
-    insertedRecords = rows;
+    insertedRows = await Promise.all(promises);
   }
 
-  return { oneSignalId: res.data.id, notifications: insertedRecords };
+  return {
+    oneSignalId:   oneSignalRes.data.id,
+    insertedRows,  // array of inserted notifications from Postgres
+  };
 }
 
 async function createNotificationRecord({ userId, type, title, message, data = {} }) {
