@@ -3,6 +3,8 @@ const OneSignal = require("onesignal-node");
 // At the top of your adminRoutes.js
 const UserService = require('../services/UserService');
 const https = require('https');
+const axios = require('axios');
+
 
 // Add this before creating your OneSignal client
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; // ⚠️ Disables SSL verification
@@ -307,37 +309,69 @@ static async deleteUser(userId) {
 
 
 
-  static async sendPushNotification({ title, message, userIds = [], segments = [] }) {
-    try {
-      if (!process.env.ONESIGNAL_APP_ID || !process.env.ONESIGNAL_REST_API_KEY) {
-        throw new Error('OneSignal credentials not configured');
-      }
-  
-      const notification = {
-        app_id: process.env.ONESIGNAL_APP_ID,
-        headings: { en: title || 'New Notification' },
-        contents: { en: message },
-        // ← fallback to the proper segment name:
-        included_segments: segments.length ? segments : ['Subscribed Users']
-      };
-  
-      if (userIds.length) {
-        notification.include_external_user_ids = userIds;
-        delete notification.included_segments;
-      }
-  
-      console.log('Final notification payload:', JSON.stringify(notification, null, 2));
-  
-      const response = await oneSignalClient.createNotification(notification, {
-        headers: { Authorization: `Basic ${process.env.ONESIGNAL_REST_API_KEY}` }
-      });
-  
-      return response;
-    } catch (err) {
-      console.error('OneSignal Error:', err);
-      throw new Error(`Notification failed: ${err.message}`);
+static async sendPushNotification({ title, message, userIds = [], segments = [] }) {
+  try {
+    if (!process.env.ONESIGNAL_APP_ID || !process.env.ONESIGNAL_REST_API_KEY) {
+      throw new Error('OneSignal credentials not configured');
     }
+
+const notification = {
+  app_id: process.env.ONESIGNAL_APP_ID,
+  headings: { en: title },
+  contents: { en: message },
+  included_segments: segments.length
+    ? segments
+    : ['All'],   // ← use “All” instead of “Subscribed Users”
+};
+
+
+    if (userIds.length) {
+      notification.include_external_user_ids = userIds;
+      delete notification.included_segments;
+    }
+
+    console.log('Final notification payload:', JSON.stringify(notification, null, 2));
+
+    // 1) Fire to OneSignal
+    const response = await axios.post(
+      'https://onesignal.com/api/v1/notifications',
+      notification,
+      {
+        headers: { Authorization: `Basic ${process.env.ONESIGNAL_REST_API_KEY}` }
+      }
+    );
+
+    // 2) Persist to our notifications table
+    const NotificationService = require('./notificationService');
+    if (userIds.length) {
+      // one record per user
+      const insertPromises = userIds.map((uid) =>
+        NotificationService.createNotificationRecord({
+          userId: uid,
+          type: 'system',
+          title,
+          message,
+          data: {}
+        })
+      );
+      await Promise.all(insertPromises);
+    } else {
+      // broadcast: insert one “global” record (user_id = NULL or however you want to handle)
+      await NotificationService.createNotificationRecord({
+        userId: null,
+        type: 'system',
+        title,
+        message,
+        data: {}
+      });
+    }
+
+    return response;
+  } catch (err) {
+    console.error('OneSignal Error:', err);
+    throw new Error(`Notification failed: ${err.message}`);
   }
+}
   
   static async deletePostAsAdmin(postId, adminId, reason) {
     const client = await pool.connect();

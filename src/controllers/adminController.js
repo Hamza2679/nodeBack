@@ -1,4 +1,6 @@
 const AdminService = require('../services/adminService');
+const NotificationService = require('../services/notificationService');
+
 
 exports.getDashboardStats = async (req, res) => {
   try {
@@ -161,23 +163,25 @@ exports.sendPushNotification = async (req, res) => {
   try {
     const { title, message, userIds, segments } = req.body;
 
-    const response = await AdminService.sendPushNotification({
+    // Call our updated service:
+    const { oneSignalId, insertedRows } = await NotificationService.sendSystemNotification({
       title,
       message,
       userIds: userIds || [],
       segments: segments || []
     });
 
-    res.status(response.statusCode).json({
+    return res.status(200).json({
       success: true,
       message: 'Notification sent successfully',
-      data: response.body
+      oneSignalId,
+      insertedCount: insertedRows.length,
+      // (optional) the actual rows: insertedRows
     });
 
   } catch (error) {
     console.error('Push Notification Error:', error);
-
-    res.status(error.statusCode || 500).json({
+    return res.status(500).json({
       success: false,
       error: error.message || 'Failed to send notification',
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
