@@ -406,6 +406,192 @@ static async deactivateUser(userId) {
     client.release();
   }
 }
+static async getDashboardReportData(filters = {}) {
+  const client = await pool.connect();
+  try {
+    // User stats query
+    let userQuery = `
+      SELECT 
+        COUNT(*) AS total_users,
+        COUNT(DISTINCT ut.user_id) AS active_users,
+        COUNT(CASE WHEN u.created_at >= NOW() - INTERVAL '30 days' THEN 1 END) AS new_users
+      FROM users u
+      LEFT JOIN user_token ut ON ut.user_id = u.id
+      WHERE 1=1
+    `;
+    const userParams = [];
+    let userParamCount = 1;
+
+    // Content stats query
+    let contentQuery = `
+      SELECT 
+        COUNT(p.id) AS total_posts,
+        COUNT(g.id) AS total_groups,
+        COUNT(e.id) AS total_events,
+        COUNT(r.id) FILTER (WHERE r.resolved = false) AS pending_reports
+      FROM posts p
+      CROSS JOIN groups g
+      CROSS JOIN events e
+      CROSS JOIN report r
+      WHERE 1=1
+    `;
+    const contentParams = [];
+    let contentParamCount = 1;
+
+    // University filter
+    if (filters.universityIds) {
+      const ids = filters.universityIds.split(',');
+      userQuery += ` AND u.universityid = ANY($${userParamCount})`;
+      userParams.push(ids);
+      userParamCount++;
+
+      contentQuery += ` AND p.university_id = ANY($${contentParamCount})`;
+      contentParams.push(ids);
+      contentParamCount++;
+    }
+
+    // Role filter (only user)
+    if (filters.roles) {
+      const roles = filters.roles.split(',');
+      userQuery += ` AND u.role = ANY($${userParamCount})`;
+      userParams.push(roles);
+      userParamCount++;
+    }
+
+    // User date filters
+    if (filters.userStartDate) {
+      userQuery += ` AND u.created_at >= $${userParamCount}`;
+      userParams.push(filters.userStartDate);
+      userParamCount++;
+    }
+    if (filters.userEndDate) {
+      userQuery += ` AND u.created_at <= $${userParamCount}`;
+      userParams.push(filters.userEndDate);
+      userParamCount++;
+    }
+
+    // Content date filters
+    if (filters.contentStartDate) {
+      contentQuery += ` AND p.created_at >= $${contentParamCount}`;
+      contentParams.push(filters.contentStartDate);
+      contentParamCount++;
+    }
+    if (filters.contentEndDate) {
+      contentQuery += ` AND p.created_at <= $${contentParamCount}`;
+      contentParams.push(filters.contentEndDate);
+      contentParamCount++;
+    }
+
+    // Execute both queries with their own parameters
+    const [userStats, contentStats] = await Promise.all([
+      client.query(userQuery, userParams),
+      client.query(contentQuery, contentParams),
+    ]);
+
+    return {
+      userStats: {
+        totalUsers: parseInt(userStats.rows[0].total_users, 10),
+        activeUsers: parseInt(userStats.rows[0].active_users, 10),
+        newUsers: parseInt(userStats.rows[0].new_users, 10)
+      },
+      contentStats: {
+        totalPosts: parseInt(contentStats.rows[0].total_posts, 10),
+        totalGroups: parseInt(contentStats.rows[0].total_groups, 10),
+        totalEvents: parseInt(contentStats.rows[0].total_events, 10),
+        pendingReports: parseInt(contentStats.rows[0].pending_reports, 10)
+      }
+    };
+  } finally {
+    client.release();
+  }
+}
+
+static async getDetailedUserReport(filters = {}) {
+  const client = await pool.connect();
+  try {
+    let query = `
+      SELECT 
+        u.id,
+        u.first_name,
+        u.last_name,
+        u.email,
+        u.role,
+        u.universityid,
+        u.created_at,
+        u.last_login,
+        u.is_active,
+        COUNT(DISTINCT p.id) AS post_count,
+        COUNT(DISTINCT g.id) AS group_count,
+        COUNT(DISTINCT e.id) AS event_count
+      FROM users u
+      LEFT JOIN posts p ON p.userid = u.id
+      LEFT JOIN group_members gm ON gm.user_id = u.id
+      LEFT JOIN groups g ON g.id = gm.group_id
+      LEFT JOIN events e ON e.user_id = u.id
+      WHERE 1=1
+    `;
+    
+    const params = [];
+    let paramCount = 1;
+
+    // University filter
+    if (filters.universityIds) {
+      const ids = filters.universityIds.split(',');
+      query += ` AND u.universityid = ANY($${paramCount})`;
+      params.push(ids);
+      paramCount++;
+    }
+
+    // Role filter
+    if (filters.roles) {
+      const roles = filters.roles.split(',');
+      query += ` AND u.role = ANY($${paramCount})`;
+      params.push(roles);
+      paramCount++;
+    }
+
+    // Status filter
+    if (filters.isActive !== undefined) {
+      query += ` AND u.is_active = $${paramCount}`;
+      params.push(filters.isActive === 'true');
+      paramCount++;
+    }
+
+    // Date range
+    if (filters.startDate) {
+      query += ` AND u.created_at >= $${paramCount}`;
+      params.push(filters.startDate);
+      paramCount++;
+    }
+    
+    if (filters.endDate) {
+      query += ` AND u.created_at <= $${paramCount}`;
+      params.push(filters.endDate);
+      paramCount++;
+    }
+
+    // Search term
+    if (filters.searchTerm) {
+      query += ` AND (
+        u.first_name ILIKE $${paramCount} OR 
+        u.last_name ILIKE $${paramCount} OR 
+        u.email ILIKE $${paramCount}
+      )`;
+      params.push(`%${filters.searchTerm}%`);
+      paramCount++;
+    }
+
+    query += `
+      GROUP BY u.id
+      ORDER BY u.created_at DESC
+    `;
+
+    const result = await client.query(query, params);
+    return result.rows;
+  } finally {
+    client.release();
+  }
+}
 
 }
 
