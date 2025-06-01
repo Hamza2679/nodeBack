@@ -315,12 +315,15 @@ static async sendPushNotification({ title, message, userIds = [], segments = [] 
       throw new Error('OneSignal credentials not configured');
     }
 
-    const notification = {
-      app_id: process.env.ONESIGNAL_APP_ID,
-      headings: { en: title || 'New Notification' },
-      contents: { en: message },
-      included_segments: segments.length ? segments : ['Subscribed Users']
-    };
+const notification = {
+  app_id: process.env.ONESIGNAL_APP_ID,
+  headings: { en: title },
+  contents: { en: message },
+  included_segments: segments.length
+    ? segments
+    : ['All'],   // ← use “All” instead of “Subscribed Users”
+};
+
 
     if (userIds.length) {
       notification.include_external_user_ids = userIds;
