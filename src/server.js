@@ -15,7 +15,7 @@ const followRoutes = require("./routes/followRoutes");
 const studentRoutes = require("./routes/studentRoutes"); 
 const reportRoutes = require("./routes/reportRoutes");
 const groupPostReportRoutes = require('./routes/groupPostReportRoutes');
-
+const generateReportRoutes = require("./routes/generateReportRotes");
 
 const db = require("./config/db");
 const swaggerDocs = require("../swagger");
@@ -44,6 +44,7 @@ app.use("/api/events", eventRoutes);
 app.use("/api/followRo", followRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/students", studentRoutes);
+app.use("/api/generateReport", generateReportRoutes);
 
 swaggerDocs(app);
 
