@@ -60,8 +60,10 @@ exports.getConversation = async (req, res) => {
  * Get recent chats for a user
  */
 exports.getRecentChats = async (req, res) => {
+    console.log("Fetching recent chats for user:", req.user.userId);
     try {
         const userId = req.user.userId;
+        console.log("User ID:", userId);
         const messages = await MessageService.getMessagesByUser(userId);
         res.status(200).json({ messages });
     } catch (error) {
