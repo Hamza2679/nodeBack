@@ -86,6 +86,7 @@ exports.verifySignupOTP = async (universityId, otp) => {
 };
 
 exports.completeSignup = async (universityId, password, firstName, lastName, email ,profile_picture_url) => {
+    console.log("all params", universityId, password, firstName, lastName, email ,profile_picture_url);
     const client = await pool.connect();
     try {
         // Hash password
