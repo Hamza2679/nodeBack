@@ -1,25 +1,45 @@
 const pool = require("../config/db");
 const GroupPost = require("../models/groupPost");
+const { realtimeDb } = require('../services/firebaseService');
+
 
 class GroupPostService {
-    static async create(group_id, user_id, text, image_url) {
-        const client = await pool.connect();
-        try {
-            console.log("Creating post for group:", group_id, "by user:", user_id);
-            const result = await client.query(
-                `INSERT INTO group_posts (group_id, user_id, text, image_url, created_at)
-                 VALUES ($1, $2, $3, $4, NOW()) RETURNING *`,
-                [group_id, user_id, text, image_url]
-            );
-            console.log("Post created successfully:", result.rows[0]);
-    
-            return result.rows[0];
-        } catch (error) {
-            throw new Error("Error creating post: " + error.message);
-        } finally {
-            client.release();
-        }
+  static async create(group_id, user_id, text, image_url) {
+    const client = await pool.connect();
+    try {
+      console.log("Creating post for group:", group_id, "by user:", user_id);
+      const result = await client.query(
+        `INSERT INTO group_posts (group_id, user_id, text, image_url, created_at)
+         VALUES ($1, $2, $3, $4, NOW()) RETURNING *`,
+        [group_id, user_id, text, image_url]
+      );
+
+      const newPost = result.rows[0];
+      console.log("Post created successfully:", newPost);
+
+      // ---------------------------------------------------
+      // WRITE TO FIREBASE
+      // ---------------------------------------------------
+      // Use the newPost.id as the key under /group_posts/{group_id}/
+      const fbRef = realtimeDb.ref(`group_posts/${group_id}/${newPost.id}`);
+      await fbRef.set({
+        id: newPost.id,
+        groupId: newPost.group_id,
+        userId: newPost.user_id,
+        text: newPost.text,
+        imageUrl: newPost.image_url || null,
+        createdAt: newPost.created_at.toISOString(),
+        // Optionally, if you want to mirror user data (like name/profilePicture), you can fetch it separately or pass it in.
+      });
+      console.log(`Post ${newPost.id} written to Firebase under group ${group_id}`);
+
+      return newPost;
+    } catch (error) {
+      throw new Error("Error creating post: " + error.message);
+    } finally {
+      client.release();
     }
+  }
     
 
     static async getAllByGroup(groupId, limit = 100, offset = 0) {
@@ -86,70 +106,92 @@ class GroupPostService {
         }
     }
 
-   static async delete(id, userId) {
-    const client = await pool.connect();
-    try {
-        const postResult = await client.query('SELECT * FROM group_posts WHERE id = $1', [id]);
-        if (postResult.rows.length === 0) return { success: false };
-        
-        const post = postResult.rows[0];
-        let isAuthorized = false;
+static async delete(id, userId) {
+  const client = await pool.connect();
+  try {
+    const postResult = await client.query('SELECT * FROM group_posts WHERE id = $1', [id]);
+    if (postResult.rows.length === 0) return { success: false };
 
-        // Check if user is post creator
-        if (post.user_id === userId) {
-            isAuthorized = true;
-        } 
-        // Check if user is group admin/owner
-        else {
-            const memberResult = await client.query(
-                `SELECT * FROM groups WHERE id = $1 AND created_by = $2`,
-                [post.group_id, userId]
-            );
-            isAuthorized = memberResult.rows.length > 0;
-        }
+    const post = postResult.rows[0];
+    let isAuthorized = false;
 
-        if (!isAuthorized) return { success: false };
-        
-        await client.query('DELETE FROM group_posts WHERE id = $1', [id]);
-        return { 
-            success: true, 
-            group_id: post.group_id
-        };
-    } catch (error) {
-        throw error;
-    } finally {
-        client.release();
+    if (post.user_id === userId) {
+      isAuthorized = true;
+    } else {
+      const memberResult = await client.query(
+        `SELECT * FROM groups WHERE id = $1 AND created_by = $2`,
+        [post.group_id, userId]
+      );
+      isAuthorized = memberResult.rows.length > 0;
     }
+
+    if (!isAuthorized) return { success: false };
+
+    // Delete from Postgres
+    await client.query('DELETE FROM group_posts WHERE id = $1', [id]);
+    console.log(`Post ${id} deleted in Postgres`);
+
+    // ---------------------------------------------------
+    // DELETE FROM FIREBASE
+    // ---------------------------------------------------
+    const fbRef = realtimeDb.ref(`group_posts/${post.group_id}/${id}`);
+    await fbRef.remove();
+    console.log(`Post ${id} removed from Firebase under group ${post.group_id}`);
+
+    return {
+      success: true,
+      group_id: post.group_id
+    };
+  } catch (error) {
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
-    static async update(postId, userId, newText, imageUrl) {
-        const client = await pool.connect();
-        try {
-            const postCheck = await client.query(
-                `SELECT * FROM group_posts WHERE id = $1 AND user_id = $2`,
-                [postId, userId]
-            );
-    
-            if (postCheck.rows.length === 0) {
-                throw new Error("Post not found or unauthorized");
-            }
-    
-            // Update directly without trying to upload again
-            const result = await client.query(
-                `UPDATE group_posts 
-                 SET text = $1, image_url = $2 
-                 WHERE id = $3 RETURNING *`,
-                [newText || postCheck.rows[0].text, imageUrl, postId]
-            );
-    
-            return result.rows[0];
-        } catch (error) {
-            throw new Error("Error updating post: " + error.message);
-        } finally {
-            client.release();
-        }
+
+static async update(postId, userId, newText, imageUrl) {
+  const client = await pool.connect();
+  try {
+    const postCheck = await client.query(
+      `SELECT * FROM group_posts WHERE id = $1 AND user_id = $2`,
+      [postId, userId]
+    );
+
+    if (postCheck.rows.length === 0) {
+      throw new Error("Post not found or unauthorized");
     }
-    
+
+    // Update in Postgres
+    const result = await client.query(
+      `UPDATE group_posts 
+       SET text = $1, image_url = $2 
+       WHERE id = $3 RETURNING *`,
+      [newText || postCheck.rows[0].text, imageUrl, postId]
+    );
+
+    const updatedPost = result.rows[0];
+    console.log("Post updated in Postgres:", updatedPost);
+
+    // ---------------------------------------------------
+    // UPDATE IN FIREBASE
+    // ---------------------------------------------------
+    const fbRef = realtimeDb.ref(`group_posts/${updatedPost.group_id}/${postId}`);
+    await fbRef.update({
+      text: updatedPost.text,
+      imageUrl: updatedPost.image_url || null,
+      // If you want to keep createdAt unchanged, don't rewrite it.
+      // If you want an `editedAt` timestamp, add that here too.
+    });
+    console.log(`Post ${postId} updated in Firebase under group ${updatedPost.group_id}`);
+
+    return updatedPost;
+  } catch (error) {
+    throw new Error("Error updating post: " + error.message);
+  } finally {
+    client.release();
+  }
+}
 
 
 
