@@ -39,20 +39,13 @@ app.use(cors({
 }));
 app.get("/api/users/search", async (req, res, next) => {
   try {
-    // Read query params: ?term=foo&limit=10&offset=0
     const term   = req.query.term   || "";
     const limit  = parseInt(req.query.limit,  10) || 10;
     const offset = parseInt(req.query.offset, 10) || 0;
 
-    // If the client passed an empty term, return an empty list right away:
-    if (!term.trim()) {
-      return res.json([]);
-    }
+    if (!term.trim()) return res.json([]);
 
-    // Call the same static method you wrote in MessageService (or UserService)
-    // If you used UserService.searchUsers, use that instead:
     const users = await MessageService.searchUsers(term, limit, offset);
-
     return res.json(users);
   } catch (err) {
     next(err);
