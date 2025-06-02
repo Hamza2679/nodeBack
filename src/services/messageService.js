@@ -112,62 +112,7 @@ class MessageService {
     }
   }
 
-  static async editMessage(messageId, userId, newText) {
-    const client = await pool.connect();
-    try {
-      const { iv, authTag, ciphertext } = MessageService._encryptPlaintext(
-        newText
-      );
-
-      const query = `
-        UPDATE messages
-        SET 
-          iv = $1,
-          auth_tag = $2,
-          ciphertext = $3,
-          edited_at = NOW()
-        WHERE id = $4 AND sender_id = $5
-        RETURNING *;
-      `;
-      const values = [iv, authTag, ciphertext, messageId, userId];
-      const result = await client.query(query, values);
-      if (result.rowCount === 0)
-        throw new Error("Message not found or unauthorized");
-      const row = result.rows[0];
-
-      const decryptedText = MessageService._decryptCipher(
-        row.iv,
-        row.auth_tag,
-        row.ciphertext
-      );
-      const updatedMessage = new Message(
-        row.id,
-        row.sender_id,
-        row.receiver_id,
-        decryptedText,
-        row.image_url,
-        row.created_at,
-        row.edited_at,
-        row.is_deleted
-      );
-
-      const convoId = makeConversationId(row.sender_id, row.receiver_id);
-      await realtimeDb
-        .ref(`conversations/${convoId}/messages/${row.id}`)
-        .update({
-          ciphertext: row.ciphertext.toString("base64"),
-          iv: row.iv.toString("base64"),
-          authTag: row.auth_tag.toString("base64"),
-          editedAt: row.edited_at.toISOString(),
-        });
-
-      return updatedMessage;
-    } finally {
-      client.release();
-    }
-  }
-
-  static async deleteMessage(messageId, userId) {
+   static async deleteMessage(messageId, userId) {
     const client = await pool.connect();
     try {
       const query = `
@@ -208,6 +153,67 @@ class MessageService {
     }
   }
 
+
+  static async editMessage(messageId, userId, newText) {
+    const client = await pool.connect();
+    console.log(
+      `Editing message ID ${messageId} for user ${userId} with new text: "${newText}"`  );
+    try {
+      const { iv, authTag, ciphertext } = MessageService._encryptPlaintext(
+        newText
+      );
+console.log(`🔐 Encrypted message with IV: ${iv.toString('hex')}, AuthTag: ${authTag.toString('hex')}`);
+      const query = `
+        UPDATE messages
+        SET 
+          iv = $1,
+          auth_tag = $2,
+          ciphertext = $3,
+          edited_at = NOW()
+        WHERE id = $4 AND sender_id = $5
+        RETURNING *;
+      `;
+      const values = [iv, authTag, ciphertext, messageId, userId];
+      const result = await client.query(query, values);
+      console.log(`🔄 Query executed, rows affected: ${result.rowCount}`);
+      if (result.rowCount === 0)
+        throw new Error("Message not found or unauthorized");
+      const row = result.rows[0];
+
+      const decryptedText = MessageService._decryptCipher(
+        row.iv,
+        row.auth_tag,
+        row.ciphertext
+      );
+      const updatedMessage = new Message(
+        row.id,
+        row.sender_id,
+        row.receiver_id,
+        decryptedText,
+        row.image_url,
+        row.created_at,
+        row.edited_at,
+        row.is_deleted
+      );
+
+      const convoId = makeConversationId(row.sender_id, row.receiver_id);
+      console.log(`🔄 Updating Firebase Realtime Database for conversation ID: ${convoId}`);
+      await realtimeDb
+        .ref(`conversations/${convoId}/messages/${row.id}`)
+        .update({
+          ciphertext: row.ciphertext.toString("base64"),
+          iv: row.iv.toString("base64"),
+          authTag: row.auth_tag.toString("base64"),
+          editedAt: row.edited_at.toISOString(),
+        });
+        console.log(`📥 Updated message in Firebase:`, {updatedMessage});
+      return updatedMessage;
+    } finally {
+      client.release();
+    }
+  }
+
+ 
   static async getConversation(user1Id, user2Id) {
     const client = await pool.connect();
     try {
