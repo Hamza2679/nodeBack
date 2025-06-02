@@ -37,6 +37,54 @@ exports.sendMessage = async (req, res) => {
     }
 };
 
+
+
+/**
+ * Edit a message
+ */
+exports.editMessage = async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        console.log("Editing message for user:", userId);
+        const { messageId } = req.params;
+        console.log("Message ID to edit:", messageId);
+        const { text } = req.body;
+        console.log("New message text:", text);
+        if (!text) {
+            return res.status(400).json({ error: "New message text is required" });
+        }
+
+        const message = await MessageService.editMessage(messageId, userId, text);
+        console.log("Edited message:", message);
+        res.status(200).json({ message });
+    } catch (error) {
+        console.error("Edit Message Error:", error);
+        res.status(error.message.includes("unauthorized") ? 403 : 404)
+           .json({ error: error.message });
+    }
+};
+
+/**
+ * Delete a message
+ */
+exports.deleteMessage = async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const { messageId } = req.params;
+
+        const message = await MessageService.deleteMessage(messageId, userId);
+        res.status(200).json({ 
+            message: "Message deleted successfully",
+            deletedMessage: message
+        });
+    } catch (error) {
+        console.error("Delete Message Error:", error);
+        res.status(error.message.includes("unauthorized") ? 403 : 404)
+           .json({ error: error.message });
+    }
+};
+
+
 exports.getConversation = async (req, res) => {
     try {
         const userId = req.user.userId;
@@ -88,45 +136,3 @@ exports.getPaginatedMessages = async (req, res) => {
     }
 };
 
-
-/**
- * Edit a message
- */
-exports.editMessage = async (req, res) => {
-    try {
-        const userId = req.user.userId;
-        const { messageId } = req.params;
-        const { text } = req.body;
-
-        if (!text) {
-            return res.status(400).json({ error: "New message text is required" });
-        }
-
-        const message = await MessageService.editMessage(messageId, userId, text);
-        res.status(200).json({ message });
-    } catch (error) {
-        console.error("Edit Message Error:", error);
-        res.status(error.message.includes("unauthorized") ? 403 : 404)
-           .json({ error: error.message });
-    }
-};
-
-/**
- * Delete a message
- */
-exports.deleteMessage = async (req, res) => {
-    try {
-        const userId = req.user.userId;
-        const { messageId } = req.params;
-
-        const message = await MessageService.deleteMessage(messageId, userId);
-        res.status(200).json({ 
-            message: "Message deleted successfully",
-            deletedMessage: message
-        });
-    } catch (error) {
-        console.error("Delete Message Error:", error);
-        res.status(error.message.includes("unauthorized") ? 403 : 404)
-           .json({ error: error.message });
-    }
-};
