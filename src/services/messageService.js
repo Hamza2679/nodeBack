@@ -328,17 +328,19 @@ console.log(`🔐 Encrypted message with IV: ${iv.toString('hex')}, AuthTag: ${a
       client.release();
     }
   }
-      static async searchUsers(searchTerm, limit = 10, offset = 0) {
+   static async searchUsers(searchTerm, limit = 10, offset = 0) {
     const client = await pool.connect();
     try {
       const likePattern = `%${searchTerm}%`;
+
       const query = `
         SELECT
           id,
           first_name,
           last_name,
           email,
-          profilepicture
+          profilepicture,
+          universityid
         FROM users
         WHERE
           first_name ILIKE $1
@@ -356,12 +358,14 @@ console.log(`🔐 Encrypted message with IV: ${iv.toString('hex')}, AuthTag: ${a
         firstName:     row.first_name,
         lastName:      row.last_name,
         email:         row.email,
-        profileImage:  row.profilepicture
+        profileImage:  row.profilepicture,
+        universityId:  row.universityid
       }));
     } finally {
       client.release();
     }
   }
+
 
 
   static async getMessagesByUser(userId) {
