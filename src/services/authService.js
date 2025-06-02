@@ -44,14 +44,16 @@ exports.initiateSignup = async (universityId) => {
             student.email, 
             otp,
             student.firstName,
-            student.lastName
+            student.lastName,
+            
         );
 
         return { 
             message: "OTP sent successfully",
             email: student.email,
             firstName: student.firstName,
-            lastName: student.lastName
+            lastName: student.lastName,
+            profilePictureUrl:student.profilePictureUrl
         };
     } finally {
         client.release();
@@ -86,19 +88,22 @@ exports.verifySignupOTP = async (universityId, otp) => {
 };
 
 exports.completeSignup = async (universityId, password, firstName, lastName, email ,profile_picture_url) => {
+    console.log("all params", universityId, password, firstName, lastName, email ,profile_picture_url);
     const client = await pool.connect();
+   
     try {
         // Hash password
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
         // Create user
-        const userResult = await client.query(
-            `INSERT INTO users 
-             (first_name, last_name, email, password, role, universityid ,profilepicture) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7) 
-             RETURNING *`,
-            [firstName, lastName, email, hashedPassword, 'student', universityId , profile_picture_url]
-        );
+      const userResult = await client.query(
+    `INSERT INTO users 
+     (first_name, last_name, email, password, role, universityid ,profilepicture) 
+     VALUES ($1, $2, $3, $4, $5, $6, $7) 
+     RETURNING *`,
+    [firstName, lastName, email, hashedPassword, 'student', universityId , profile_picture_url]
+);
+ console.log(userResult);
 
         // Delete OTP record
         await client.query(

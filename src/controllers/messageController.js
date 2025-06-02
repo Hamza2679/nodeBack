@@ -37,54 +37,6 @@ exports.sendMessage = async (req, res) => {
     }
 };
 
-exports.getConversation = async (req, res) => {
-    try {
-        const userId = req.user.userId;
-        const otherUserId = req.params.userId;
-
-        if (!otherUserId) {
-            return res.status(400).json({ error: "User ID is required" });
-        }
-
-        const { messages } = await MessageService.getConversation(userId, otherUserId);
-
-        res.status(200).json({ messages });
-    } catch (error) {
-        console.error("Get Conversation Error:", error);
-        res.status(500).json({ error: "Internal Server Error" });
-    }
-};
-
-
-/**
- * Get recent chats for a user
- */
-exports.getRecentChats = async (req, res) => {
-    try {
-        const userId = req.user.userId;
-        const messages = await MessageService.getMessagesByUser(userId);
-        res.status(200).json({ messages });
-    } catch (error) {
-        console.error("Get Recent Chats Error:", error);
-        res.status(500).json({ error: "Internal Server Error" });
-    }
-};
-
-
-exports.getPaginatedMessages = async (req, res) => {
-    try {
-        const senderId = req.user.userId;
-        const receiverId = req.params.receiverId;
-        const limit = parseInt(req.query.limit) || 20;
-        const offset = parseInt(req.query.offset) || 0;
-        const messages = await MessageService.getMessagesBetweenUsersPaginated(senderId, receiverId, limit, offset);
-
-        res.status(200).json({ messages });
-    } catch (error) {
-        console.error("Get Paginated Messages Error:", error);
-        res.status(500).json({ error: "Internal Server Error" });
-    }
-};
 
 
 /**
@@ -93,14 +45,17 @@ exports.getPaginatedMessages = async (req, res) => {
 exports.editMessage = async (req, res) => {
     try {
         const userId = req.user.userId;
+        console.log("Editing message for user:", userId);
         const { messageId } = req.params;
+        console.log("Message ID to edit:", messageId);
         const { text } = req.body;
-
+        console.log("New message text:", text);
         if (!text) {
             return res.status(400).json({ error: "New message text is required" });
         }
 
         const message = await MessageService.editMessage(messageId, userId, text);
+        console.log("Edited message:", message);
         res.status(200).json({ message });
     } catch (error) {
         console.error("Edit Message Error:", error);
@@ -128,3 +83,56 @@ exports.deleteMessage = async (req, res) => {
            .json({ error: error.message });
     }
 };
+
+
+exports.getConversation = async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const otherUserId = req.params.userId;
+
+        if (!otherUserId) {
+            return res.status(400).json({ error: "User ID is required" });
+        }
+
+        const { messages } = await MessageService.getConversation(userId, otherUserId);
+
+        res.status(200).json({ messages });
+    } catch (error) {
+        console.error("Get Conversation Error:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+};
+
+
+/**
+ * Get recent chats for a user
+ */
+exports.getRecentChats = async (req, res) => {
+    console.log("Fetching recent chats for user:", req.user.userId);
+    try {
+        const userId = req.user.userId;
+        console.log("User ID:", userId);
+        const messages = await MessageService.getMessagesByUser(userId);
+        res.status(200).json({ messages });
+    } catch (error) {
+        console.error("Get Recent Chats Error:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+};
+
+
+exports.getPaginatedMessages = async (req, res) => {
+    try {
+        const senderId = req.user.userId;
+        const receiverId = req.params.receiverId;
+        const limit = parseInt(req.query.limit) || 20;
+        const offset = parseInt(req.query.offset) || 0;
+        const messages = await MessageService.getMessagesBetweenUsersPaginated(senderId, receiverId, limit, offset);
+
+        res.status(200).json({ messages });
+    } catch (error) {
+        console.error("Get Paginated Messages Error:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+};
+

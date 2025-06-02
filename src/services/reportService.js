@@ -84,6 +84,95 @@ class ReportService {
       client.release();
     }
   }
+  // Add to ReportService class
+static async getReportedUsersForExport(filters = {}) {
+  const client = await pool.connect();
+  try {
+    let query = `
+      SELECT 
+        u.id AS user_id,
+        u.first_name,
+        u.last_name,
+        u.email,
+        u.role,
+        u.universityid AS university_id,
+        COUNT(ur.id) AS report_count,
+        ARRAY_AGG(ur.reason) AS reasons,
+        MIN(ur.created_at) AS first_reported_at,
+        MAX(ur.created_at) AS last_reported_at
+      FROM user_reports ur
+      JOIN users u ON u.id = ur.reported_id
+      WHERE 1=1
+    `;
+    
+    const params = [];
+    let paramCount = 1;
+
+    // University filter
+    if (filters.universityIds) {
+      const ids = filters.universityIds.split(',');
+      query += ` AND u.universityid = ANY($${paramCount})`;
+      params.push(ids);
+      paramCount++;
+    }
+
+    // Role filter
+    if (filters.roles) {
+      const roles = filters.roles.split(',');
+      query += ` AND u.role = ANY($${paramCount})`;
+      params.push(roles);
+      paramCount++;
+    }
+
+    // Report date range
+    if (filters.startDate) {
+      query += ` AND ur.created_at >= $${paramCount}`;
+      params.push(filters.startDate);
+      paramCount++;
+    }
+    
+    if (filters.endDate) {
+      query += ` AND ur.created_at <= $${paramCount}`;
+      params.push(filters.endDate);
+      paramCount++;
+    }
+
+    // Minimum report count
+    if (filters.minReports) {
+      query += ` AND (SELECT COUNT(*) FROM user_reports WHERE reported_id = u.id) >= $${paramCount}`;
+      params.push(parseInt(filters.minReports));
+      paramCount++;
+    }
+
+    // Reason filter
+    if (filters.reason) {
+      query += ` AND ur.reason ILIKE $${paramCount}`;
+      params.push(`%${filters.reason}%`);
+      paramCount++;
+    }
+
+    query += `
+      GROUP BY u.id
+      ORDER BY report_count DESC
+    `;
+
+    const result = await client.query(query, params);
+    return result.rows.map(r => ({
+      userId: r.user_id,
+      firstName: r.first_name,
+      lastName: r.last_name,
+      email: r.email,
+      role: r.role,
+      universityId: r.university_id,
+      reportCount: parseInt(r.report_count, 10),
+      reasons: r.reasons,
+      firstReportedAt: r.first_reported_at,
+      lastReportedAt: r.last_reported_at
+    }));
+  } finally {
+    client.release();
+  }
+}
 }
 
 module.exports = ReportService;
