@@ -18,6 +18,9 @@ const groupPostReportRoutes = require('./routes/groupPostReportRoutes');
 const notificationsRouter = require('./routes/notificationsRouter');
 const eventNotificationsRouter = require('./routes/eventNotificationsRouter');
 
+const MessageService = require("./services/messageService");
+
+
 
 
 const db = require("./config/db");
@@ -33,6 +36,27 @@ app.use(cors({
   methods: "GET,POST,PUT,DELETE",
   credentials: true,
 }));
+app.get("/api/users/search", async (req, res, next) => {
+  try {
+    // Read query params: ?term=foo&limit=10&offset=0
+    const term   = req.query.term   || "";
+    const limit  = parseInt(req.query.limit,  10) || 10;
+    const offset = parseInt(req.query.offset, 10) || 0;
+
+    // If the client passed an empty term, return an empty list right away:
+    if (!term.trim()) {
+      return res.json([]);
+    }
+
+    // Call the same static method you wrote in MessageService (or UserService)
+    // If you used UserService.searchUsers, use that instead:
+    const users = await MessageService.searchUsers(term, limit, offset);
+
+    return res.json(users);
+  } catch (err) {
+    next(err);
+  }
+});
 
 app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
@@ -49,7 +73,10 @@ app.use("/api/messages", messageRoutes);
 app.use("/api/students", studentRoutes);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api', eventNotificationsRouter);
-
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ error: err.message || "Internal server error" });
+});
 
 
 swaggerDocs(app);
