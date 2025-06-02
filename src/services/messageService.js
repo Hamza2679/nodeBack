@@ -186,6 +186,41 @@ const firebaseData = {
         }
     }
     
+      static async searchUsers(searchTerm, limit = 10, offset = 0) {
+    const client = await pool.connect();
+    try {
+      const likePattern = `%${searchTerm}%`;
+      const query = `
+        SELECT
+          id,
+          first_name,
+          last_name,
+          email,
+          profilepicture
+        FROM users
+        WHERE
+          first_name ILIKE $1
+          OR last_name  ILIKE $1
+          OR email      ILIKE $1
+        ORDER BY first_name ASC, last_name ASC
+        LIMIT $2
+        OFFSET $3
+      `;
+      const values = [likePattern, limit, offset];
+      const result = await client.query(query, values);
+
+      return result.rows.map(row => ({
+        id:            row.id,
+        firstName:     row.first_name,
+        lastName:      row.last_name,
+        email:         row.email,
+        profileImage:  row.profilepicture
+      }));
+    } finally {
+      client.release();
+    }
+  }
+
 
     static async getMessagesByUser(userId) {
         const client = await pool.connect();
