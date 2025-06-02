@@ -45,14 +45,15 @@ exports.initiateSignup = async (universityId) => {
             otp,
             student.firstName,
             student.lastName,
-            student.profilePictureUrl
+            
         );
 
         return { 
             message: "OTP sent successfully",
             email: student.email,
             firstName: student.firstName,
-            lastName: student.lastName
+            lastName: student.lastName,
+            profilePictureUrl:student.profilePictureUrl
         };
     } finally {
         client.release();
